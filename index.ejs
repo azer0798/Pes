@@ -3,62 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>eFootball Store | متجر الحسابات</title>
+    <title>PES Store | متجر الحسابات</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #0b0e14; color: #e9ecef; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .hero { background: linear-gradient(45deg, #1a237e, #00c853); padding: 60px 0; border-bottom: 5px solid #ffd700; }
-        .card-account { background: #161b22; border: 1px solid #30363d; border-radius: 15px; overflow: hidden; transition: 0.3s; }
-        .card-account:hover { transform: translateY(-10px); border-color: #00c853; }
-        .featured-tag { position: absolute; top: 10px; right: 10px; background: #ffd700; color: #000; padding: 2px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; }
-        .price-badge { font-size: 1.5rem; color: #00c853; font-weight: bold; }
-        .btn-whatsapp { background-color: #25d366; border: none; font-weight: bold; }
+        body { background-color: #0f172a; color: #f8fafc; }
+        .hero { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 80px 0; border-bottom: 2px solid #3b82f6; }
+        .card-pes { background: #1e293b; border: 1px solid #334155; border-radius: 12px; transition: 0.3s; height: 100%; }
+        .card-pes:hover { transform: translateY(-8px); border-color: #3b82f6; }
+        .featured-badge { position: absolute; top: 10px; right: 10px; background: #eab308; color: #000; padding: 4px 12px; border-radius: 8px; font-weight: bold; }
+        .price { font-size: 1.5rem; color: #22c55e; font-weight: 800; }
+        .navbar { background-color: #1e293b; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
-        <a class="navbar-brand font-weight-bold" href="#"><i class="fas fa-gamepad"></i> PES STORE</a>
-        <a href="/admin-panel" class="btn btn-outline-light btn-sm">لوحة الإدارة</a>
+        <a class="navbar-brand fw-bold" href="#"><i class="fas fa-bolt text-warning"></i> PES STORE</a>
+        <a href="/login" class="btn btn-outline-light btn-sm">دخول الإدارة</a>
     </div>
 </nav>
 
-<header class="hero text-center text-white">
+<header class="hero text-center">
     <div class="container">
-        <h1 class="display-4 fw-bold">متجر eFootball الاحترافي</h1>
-        <p class="lead">تسليم فوري، حسابات موثوقة، وأفضل الأسعار في السوق</p>
+        <h1 class="display-4 fw-bold mb-3">متجر حسابات eFootball الموثوق</h1>
+        <p class="lead text-secondary">حسابات أسطورية، تسليم فوري، ودعم فني متواصل</p>
     </div>
 </header>
 
 <div class="container my-5">
+    <h2 class="mb-4"><i class="fas fa-shopping-cart text-primary"></i> الحسابات المتاحة</h2>
     <div class="row g-4">
+        <% if(accounts.length == 0) { %>
+            <div class="col-12 text-center text-muted py-5">لا توجد حسابات معروضة حالياً.</div>
+        <% } %>
         <% accounts.forEach(acc => { %>
         <div class="col-md-4">
-            <div class="card card-account h-100 position-relative">
-                <% if(acc.featured) { %> <span class="featured-tag">🔥 مميز</span> <% } %>
-                <img src="<%= acc.img %>" class="card-img-top" alt="Account Image">
+            <div class="card card-pes position-relative">
+                <% if(acc.featured) { %> <span class="featured-badge">مميز 🔥</span> <% } %>
+                <img src="<%= acc.img %>" class="card-img-top p-2 rounded-4" style="height: 200px; object-fit: cover;">
                 <div class="card-body">
-                    <h5 class="card-title text-primary"><%= acc.title %></h5>
-                    <p class="small text-secondary mb-1"><i class="fas fa-users"></i> اللاعبين: <%= acc.players %></p>
-                    <p class="small text-secondary"><i class="fas fa-star text-warning"></i> التقييم: <%= acc.stars %> نجوم</p>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <span class="price-badge">$<%= acc.price %></span>
-                        <a href="https://wa.me/20123456789?text=طلب شراء حساب رقم: <%= acc.id %> - الاسم: <%= acc.title %>" class="btn btn-whatsapp text-white">
+                    <h5 class="card-title fw-bold"><%= acc.title %></h5>
+                    <p class="text-secondary small mb-2"><i class="fas fa-user-friends"></i> أبرز اللاعبين: <%= acc.players %></p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="price"><%= acc.price %>$</span>
+                        <a href="https://wa.me/20123456789?text=أريد شراء الحساب رقم: #<%= acc.id %>" class="btn btn-success fw-bold">
                             <i class="fab fa-whatsapp"></i> شراء الآن
                         </a>
                     </div>
                 </div>
-                <div class="card-footer text-muted small">رقم الطلب: #<%= acc.id %></div>
+                <div class="card-footer bg-transparent border-top border-secondary small text-muted">رقم الحساب: #<%= acc.id %></div>
             </div>
         </div>
         <% }) %>
     </div>
 </div>
 
-<footer class="text-center py-4 border-top border-secondary">
-    <p>© 2024 متجر eFootball - جميع الحقوق محفوظة</p>
+<footer class="text-center py-5 text-secondary border-top border-secondary mt-5">
+    <p>© 2026 PES Account Store - جميع الحقوق محفوظة</p>
 </footer>
 
 </body>
