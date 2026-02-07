@@ -28,6 +28,21 @@ app.get('/admin-panel', (req, res) => {
 app.post('/add-account', (req, res) => {
     const newAcc = {
         id: Date.now(),
+        // Middleware بسيط للحماية
+function checkAuth(req, res, next) {
+    const password = req.query.pass;
+    if (password === '12345') { // غير الرقم السري هنا
+        next();
+    } else {
+        res.status(403).send('غير مسموح لك بالدخول!');
+    }
+}
+
+// تعديل رابط لوحة التحكم
+app.get('/admin-panel', checkAuth, (req, res) => {
+    res.render('admin', { accounts: accounts });
+});
+
         title: req.body.title,
         price: req.body.price,
         players: req.body.players,
