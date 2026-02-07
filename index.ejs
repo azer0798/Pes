@@ -7,46 +7,43 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
-        .navbar { background-color: #1e293b; border-bottom: 1px solid #334155; }
-        .hero { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px 0; border-bottom: 1px solid #334155; }
-        .card-pes { background: #1e293b; border: 1px solid #334155; border-radius: 15px; transition: 0.3s; position: relative; }
-        .card-pes:hover { transform: translateY(-5px); border-color: #3b82f6; }
-        .price { font-size: 1.4rem; color: #22c55e; font-weight: 800; }
-        .btn-buy { background-color: #0088cc; border: none; font-weight: bold; }
-        .account-id-badge { background: rgba(59, 130, 246, 0.2); color: #3b82f6; padding: 2px 8px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 10px; display: inline-block; }
-        .featured-badge { position: absolute; top: 15px; right: 15px; background: #eab308; color: #000; padding: 2px 10px; border-radius: 5px; font-weight: bold; font-size: 0.8rem; z-index: 10; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+        .hero { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 30px 0; border-bottom: 2px solid #3b82f6; }
+        .card-pes { background: #1e293b; border: 1px solid #334155; border-radius: 15px; transition: 0.3s; }
+        .card-pes:hover { transform: translateY(-5px); border-color: #3b82f6; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+        .price { font-size: 1.5rem; color: #22c55e; font-weight: 800; }
+        .btn-buy { background-color: #0088cc; border: none; font-weight: bold; padding: 8px 25px; border-radius: 10px; }
+        .account-id { background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; }
+        .featured-badge { position: absolute; top: 15px; right: 15px; background: #fbbf24; color: #000; padding: 2px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; z-index: 5; }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark">
+<header class="hero text-center shadow">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="/"><i class="fas fa-gamepad text-info"></i> WassitDZ Game</a>
-    </div>
-</nav>
-
-<header class="hero text-center">
-    <div class="container">
-        <h1 class="fw-bold text-white">WassitDZ Game</h1>
-        <p class="text-secondary small">متجر بيع حسابات eFootball الموثوق في الجزائر</p>
+        <h1 class="fw-bold"><i class="fas fa-gamepad"></i> WassitDZ Game</h1>
+        <p class="text-secondary small">متجر بيع حسابات eFootball الموثوق - تسليم فوري</p>
     </div>
 </header>
 
 <div class="container my-5">
     <div class="row g-4">
+        <% if(accounts.length === 0) { %>
+            <div class="col-12 text-center text-muted py-5">لا توجد حسابات معروضة حالياً.</div>
+        <% } %>
         <% accounts.forEach(acc => { %>
         <div class="col-md-4">
-            <div class="card card-pes h-100">
-                <% if(acc.featured) { %> <span class="featured-badge">عرض خاص</span> <% } %>
-                <img src="<%= acc.img %>" class="card-img-top p-2 rounded-4" style="height: 180px; object-fit: cover;">
+            <div class="card card-pes h-100 position-relative">
+                <% if(acc.featured) { %> <span class="featured-badge">🔥 عرض محدود</span> <% } %>
+                <img src="<%= acc.img %>" class="card-img-top p-2 rounded-4" style="height: 190px; object-fit: cover;">
                 <div class="card-body">
-                    <span class="account-id-badge">كود الحساب: #<%= acc.id %></span>
+                    <div class="mb-2"><span class="account-id">كود: #<%= acc.id %></span></div>
                     <h5 class="card-title fw-bold text-white"><%= acc.title %></h5>
                     <p class="text-secondary small mb-3"><%= acc.players %></p>
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
                         <span class="price">$<%= acc.price %></span>
-                        <a href="https://t.me/zedx07?text=السلام عليكم، أريد شراء الحساب رقم: #<%= acc.id %>" class="btn btn-buy text-white px-4">
+                        <a href="https://t.me/zedx07?text=<%= encodeURIComponent('السلام عليكم WassitDZ Game، أريد شراء الحساب رقم: #' + acc.id) %>" 
+                           class="btn btn-buy text-white">
                             شراء الآن
                         </a>
                     </div>
@@ -57,8 +54,8 @@
     </div>
 </div>
 
-<footer class="text-center py-4 text-secondary border-top border-secondary">
-    <p>© 2026 WassitDZ Game - جميع الحقوق محفوظة</p>
+<footer class="text-center py-4 text-secondary border-top border-secondary mt-5">
+    <p>© 2026 WassitDZ Game - متجرك الموثوق</p>
 </footer>
 
 </body>
