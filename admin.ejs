@@ -2,32 +2,113 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>الإدارة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المدير | PES Store</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .sidebar-header { background: #1e293b; color: white; padding: 20px; text-align: center; border-radius: 0 0 20px 20px; margin-bottom: 30px; }
+        .card-custom { border: none; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .table img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+        .btn-add { background-color: #3b82f6; border: none; padding: 10px 25px; border-radius: 10px; font-weight: bold; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; }
+        .featured-on { background: #fef3c7; color: #92400e; }
+        .featured-off { background: #f1f5f9; color: #475569; }
+    </style>
 </head>
-<body class="bg-light p-4">
-    <div class="container shadow-sm bg-white p-4 rounded">
-        <div class="d-flex justify-content-between mb-4">
-            <h3>إضافة حساب جديد</h3>
-            <a href="/logout" class="btn btn-danger btn-sm">خروج</a>
+<body>
+
+    <div class="sidebar-header shadow">
+        <h3><i class="fas fa-user-shield"></i> لوحة تحكم المتجر</h3>
+        <div class="mt-2">
+            <span class="badge bg-success">متصل الآن</span>
+            <a href="/" class="btn btn-sm btn-outline-light ms-3">معاينة المتجر</a>
+            <a href="/logout" class="btn btn-sm btn-danger ms-2">تسجيل خروج</a>
         </div>
-        <form action="/add-account" method="POST" enctype="multipart/form-data" class="row g-3">
-            <div class="col-md-6"><input type="text" name="title" class="form-control" placeholder="عنوان الحساب" required></div>
-            <div class="col-md-3"><input type="number" name="price" class="form-control" placeholder="السعر $" required></div>
-            <div class="col-md-3"><div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="featured" id="f"><label for="f">عرض محدود 🔥</label></div></div>
-            <div class="col-12"><input type="text" name="players" class="form-control" placeholder="اللاعبين"></div>
-            <div class="col-12"><input type="file" name="imageFile" class="form-control" accept="image/*" required></div>
-            <div class="col-12"><button class="btn btn-primary w-100">نشر الحساب</button></div>
-        </form>
-        <hr>
-        <table class="table mt-4">
-            <thead><tr><th>العنوان</th><th>السعر</th><th>حذف</th></tr></thead>
-            <tbody>
-                <% accounts.forEach(acc => { %>
-                <tr><td><%= acc.title %></td><td><%= acc.price %>$</td><td><a href="/delete/<%= acc.id %>" class="text-danger">حذف</a></td></tr>
-                <% }) %>
-            </tbody>
-        </table>
     </div>
+
+    <div class="container mb-5">
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card card-custom p-4">
+                    <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-plus-circle"></i> إضافة حساب جديد</h5>
+                    <form action="/add-account" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label small">عنوان الحساب</label>
+                            <input type="text" name="title" class="form-control" placeholder="مثلاً: حساب بيكام أسطوري" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">السعر (بالدولار $)</label>
+                            <input type="number" name="price" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">أهم اللاعبين في الحساب</label>
+                            <textarea name="players" class="form-control" rows="2" placeholder="Messi, Ronaldo, Neymar..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">صورة الحساب (Screenshot)</label>
+                            <input type="file" name="imageFile" class="form-control" accept="image/*" required>
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" name="featured" id="featuredCheck">
+                            <label class="form-check-label" for="featuredCheck">تمييز الحساب (عرض محدود 🔥)</label>
+                        </div>
+                        <button type="submit" class="btn btn-add w-100 text-white">نشر الحساب الآن</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card card-custom p-4">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-list"></i> الحسابات المعروضة حالياً (<%= accounts.length %>)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>الصورة</th>
+                                    <th>العنوان</th>
+                                    <th>السعر</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if(accounts.length === 0) { %>
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">لا توجد حسابات معروضة حالياً. أضف أول حساب!</td>
+                                    </tr>
+                                <% } %>
+                                <% accounts.forEach(acc => { %>
+                                <tr>
+                                    <td><img src="<%= acc.img %>" alt="acc"></td>
+                                    <td>
+                                        <div class="fw-bold"><%= acc.title %></div>
+                                        <div class="small text-muted">ID: #<%= acc.id %></div>
+                                    </td>
+                                    <td class="text-success fw-bold">$<%= acc.price %></td>
+                                    <td>
+                                        <% if(acc.featured) { %>
+                                            <span class="status-badge featured-on">مميز 🔥</span>
+                                        <% } else { %>
+                                            <span class="status-badge featured-off">عادي</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <a href="/delete/<%= acc.id %>" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذا الحساب؟')">
+                                            <i class="fas fa-trash"></i> حذف
+                                        </a>
+                                    </td>
+                                </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
