@@ -2,50 +2,79 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>لوحة التحكم</title>
-    <style>
-        body { font-family: sans-serif; background: #f8fafc; padding: 20px; }
-        .form-box { background: white; padding: 20px; border-radius: 10px; max-width: 500px; margin-bottom: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        .delete-btn { color: red; text-decoration: none; }
-    </style>
+    <title>إدارة المتجر</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>إدارة الحسابات</h1>
-    <div class="form-box">
-        <h3>إضافة حساب جديد</h3>
-        <form action="/add-account" method="POST">
-            <input type="text" name="title" placeholder="عنوان الحساب" required>
-            <input type="text" name="price" placeholder="السعر ($)" required>
-            <input type="text" name="players" placeholder="أهم اللاعبين">
-            <input type="number" name="stars" placeholder="عدد النجوم">
-            <input type="text" name="img" placeholder="رابط صورة الحساب">
-            <label><input type="checkbox" name="featured"> تمييز الحساب</label>
-            <button type="submit" style="background: #3b82f6; color: white; border: none;">إضافة الحساب</button>
-        </form>
+<body class="bg-light">
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>إدارة الحسابات المتاحة</h2>
+        <a href="/logout" class="btn btn-danger">تسجيل الخروج</a>
     </div>
 
-    <table>
-        <thead>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">إضافة حساب جديد</div>
+        <div class="card-body">
+            <form action="/add-account" method="POST" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">عنوان الحساب</label>
+                    <input type="text" name="title" class="form-control" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">السعر ($)</label>
+                    <input type="number" name="price" class="form-control" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">النجوم</label>
+                    <select name="stars" class="form-select">
+                        <option value="3">3 نجوم</option>
+                        <option value="4">4 نجوم</option>
+                        <option value="5" selected>5 نجوم</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">أهم اللاعبين (Messi, Neymar...)</label>
+                    <input type="text" name="players" class="form-control">
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">رابط الصورة (URL)</label>
+                    <input type="text" name="img" class="form-control" placeholder="https://...">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="featured" id="f">
+                        <label class="form-check-label" for="f">تمييز الحساب 🔥</label>
+                    </div>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-success px-5">حفظ ونشر الحساب</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <table class="table table-hover bg-white shadow-sm rounded">
+        <thead class="table-dark">
             <tr>
+                <th>ID</th>
                 <th>العنوان</th>
                 <th>السعر</th>
+                <th>الحالة</th>
                 <th>إجراءات</th>
             </tr>
         </thead>
         <tbody>
             <% accounts.forEach(acc => { %>
-                <tr>
-                    <td><%= acc.title %></td>
-                    <td><%= acc.price %>$</td>
-                    <td><a href="/delete/<%= acc.id %>" class="delete-btn">حذف</a></td>
-                </tr>
+            <tr>
+                <td>#<%= acc.id %></td>
+                <td><%= acc.title %></td>
+                <td>$<%= acc.price %></td>
+                <td><%= acc.featured ? 'مميز' : 'عادي' %></td>
+                <td><a href="/delete/<%= acc.id %>" class="btn btn-sm btn-outline-danger">حذف</a></td>
+            </tr>
             <% }) %>
         </tbody>
     </table>
-    <br>
-    <a href="/">العودة للموقع الرئيسي</a>
+</div>
 </body>
 </html>
