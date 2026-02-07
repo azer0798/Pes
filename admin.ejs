@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم</title>
+    <style>
+        body { font-family: sans-serif; background: #f8fafc; padding: 20px; }
+        .form-box { background: white; padding: 20px; border-radius: 10px; max-width: 500px; margin-bottom: 30px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .delete-btn { color: red; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h1>إدارة الحسابات</h1>
+    <div class="form-box">
+        <h3>إضافة حساب جديد</h3>
+        <form action="/add-account" method="POST">
+            <input type="text" name="title" placeholder="عنوان الحساب" required>
+            <input type="text" name="price" placeholder="السعر ($)" required>
+            <input type="text" name="players" placeholder="أهم اللاعبين">
+            <input type="number" name="stars" placeholder="عدد النجوم">
+            <input type="text" name="img" placeholder="رابط صورة الحساب">
+            <label><input type="checkbox" name="featured"> تمييز الحساب</label>
+            <button type="submit" style="background: #3b82f6; color: white; border: none;">إضافة الحساب</button>
+        </form>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>العنوان</th>
+                <th>السعر</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% accounts.forEach(acc => { %>
+                <tr>
+                    <td><%= acc.title %></td>
+                    <td><%= acc.price %>$</td>
+                    <td><a href="/delete/<%= acc.id %>" class="delete-btn">حذف</a></td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+    <br>
+    <a href="/">العودة للموقع الرئيسي</a>
+</body>
+</html>
