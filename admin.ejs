@@ -4,48 +4,94 @@
     <meta charset="UTF-8">
     <title>إدارة WassitDZ Game</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8fafc; }
+        .card-admin { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+    </style>
 </head>
-<body class="bg-light">
-    <nav class="navbar navbar-dark bg-dark mb-4">
-        <div class="container">
-            <span class="navbar-brand">لوحة تحكم WassitDZ</span>
+<body class="p-4">
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="fas fa-tools me-2"></i> لوحة إدارة WassitDZ</h3>
+        <div>
+            <a href="/" class="btn btn-outline-primary btn-sm">عرض المتجر</a>
             <a href="/logout" class="btn btn-danger btn-sm">خروج</a>
         </div>
-    </nav>
+    </div>
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-5">
-                <div class="card shadow-sm p-4 mb-4">
-                    <h5 class="fw-bold mb-3">إضافة حساب جديد</h5>
-                    <form action="/add-account" method="POST" enctype="multipart/form-data">
-                        <input type="text" name="title" class="form-control mb-2" placeholder="عنوان الحساب" required>
-                        <input type="number" name="price" class="form-control mb-2" placeholder="السعر $" required>
-                        <textarea name="players" class="form-control mb-2" placeholder="أهم اللاعبين (Messi, Neymar...)"></textarea>
-                        
-                        <label class="small text-muted mb-1">اختر صور الحساب (حتى 5 صور)</label>
-                        <input type="file" name="imageFiles" class="form-control mb-3" accept="image/*" multiple required>
-                        
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" name="featured" id="f">
-                            <label class="form-check-label" for="f">تمييز الحساب 🔥</label>
-                        </div>
-                        <button class="btn btn-primary w-100 fw-bold">نشر الحساب</button>
-                    </form>
-                </div>
+    <div class="card card-admin p-4 mb-4">
+        <h5 class="fw-bold mb-3 text-dark"><i class="fas fa-link me-2"></i> إعدادات أزرار الخدمات</h5>
+        <form action="/update-settings" method="POST" class="row g-3">
+            <div class="col-md-4">
+                <label class="small fw-bold">رابط الدعم الفني</label>
+                <input type="text" name="supportLink" class="form-control" value="<%= settings.supportLink %>">
             </div>
-            <div class="col-md-7">
-                <div class="card shadow-sm p-4">
-                    <h5 class="fw-bold mb-3">الحسابات الحالية</h5>
+            <div class="col-md-4">
+                <label class="small fw-bold">رابط الوساطة</label>
+                <input type="text" name="mediationLink" class="form-control" value="<%= settings.mediationLink %>">
+            </div>
+            <div class="col-md-4">
+                <label class="small fw-bold">رابط بيع حساب للمتجر</label>
+                <input type="text" name="sellAccountLink" class="form-control" value="<%= settings.sellAccountLink %>">
+            </div>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-dark">حفظ الروابط</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card card-admin p-4">
+                <h5 class="fw-bold mb-3 text-primary">إضافة حساب جديد</h5>
+                <form action="/add-account" method="POST" enctype="multipart/form-data">
+                    <div class="mb-2">
+                        <input type="text" name="title" class="form-control" placeholder="عنوان الحساب (مثلاً: حساب أساطير)" required>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <input type="number" name="price" class="form-control" placeholder="السعر $" required>
+                        </div>
+                        <div class="col-6">
+                            <select name="linkType" class="form-select">
+                                <option value="ID Konami">ID Konami</option>
+                                <option value="Google Play">Google Play</option>
+                                <option value="Game Center">Game Center</option>
+                                <option value="غير مربوط">غير مربوط</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <textarea name="players" class="form-control" placeholder="أبرز اللاعبين"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">صور الحساب (حتى 5 صور)</label>
+                        <input type="file" name="imageFiles" class="form-control" multiple required>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="featured" id="f">
+                        <label class="form-check-label" for="f">تمييز الحساب (Featured)</label>
+                    </div>
+                    <button class="btn btn-primary w-100 fw-bold">نشر الحساب</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card card-admin p-4">
+                <h5 class="fw-bold mb-3">الحسابات الحالية (<%= accounts.length %>)</h5>
+                <div class="table-responsive">
                     <table class="table align-middle">
-                        <thead><tr><th>الصور</th><th>العنوان</th><th>السعر</th><th>حذف</th></tr></thead>
+                        <thead><tr><th>الصورة</th><th>التفاصيل</th><th>السعر</th><th>حذف</th></tr></thead>
                         <tbody>
                             <% accounts.forEach(acc => { %>
                             <tr>
                                 <td><img src="<%= acc.imgs[0] %>" width="50" class="rounded shadow-sm"></td>
-                                <td class="small">#<%= acc.id %> - <%= acc.title %></td>
+                                <td><div class="small fw-bold">#<%= acc.id %></div><div class="small"><%= acc.title %></div></td>
                                 <td class="fw-bold text-success">$<%= acc.price %></td>
-                                <td><a href="/delete/<%= acc.id %>" class="btn btn-sm btn-outline-danger">حذف</a></td>
+                                <td><a href="/delete/<%= acc.id %>" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a></td>
                             </tr>
                             <% }) %>
                         </tbody>
@@ -54,5 +100,7 @@
             </div>
         </div>
     </div>
+</div>
+
 </body>
 </html>
