@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.use(session({
-    secret: 'wassit_secure_key_2026',
+    secret: 'wassitdz_ultra_2026',
     resave: false,
     saveUninitialized: true
 }));
@@ -31,18 +31,18 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// مخزن البيانات (سيتم تصفيره عند إعادة تشغيل Render إلا في حال ربط قاعدة بيانات)
+// مخزن البيانات والإعدادات
 let accounts = []; 
 let siteSettings = {
     supportLink: "https://t.me/zedx07",
     mediationLink: "https://t.me/zedx07",
-    sellAccountLink: "https://t.me/zedx07"
+    sellAccountLink: "https://t.me/zedx07",
+    announcement: "مرحباً بكم في WassitDZ Game - أفضل العروض والوساطة المضمونة متوفرة الآن!"
 };
 
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "pes2026";
 
-// المسارات
 app.get('/', (req, res) => {
     res.render('index', { accounts: accounts, settings: siteSettings });
 });
@@ -63,16 +63,15 @@ app.get('/admin-panel', (req, res) => {
     res.render('admin', { accounts: accounts, settings: siteSettings });
 });
 
-// تحديث روابط التواصل
 app.post('/update-settings', (req, res) => {
     if (!req.session.isAdmin) return res.status(403).send("Forbidden");
     siteSettings.supportLink = req.body.supportLink;
     siteSettings.mediationLink = req.body.mediationLink;
     siteSettings.sellAccountLink = req.body.sellAccountLink;
+    siteSettings.announcement = req.body.announcement;
     res.redirect('/admin-panel');
 });
 
-// إضافة حساب
 app.post('/add-account', upload.array('imageFiles', 5), (req, res) => {
     if (!req.session.isAdmin) return res.status(403).send("Forbidden");
     const imagePaths = req.files.map(file => '/uploads/' + file.filename);
@@ -101,4 +100,4 @@ app.get('/logout', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => console.log(`WassitDZ Game running on port ${PORT}`));
