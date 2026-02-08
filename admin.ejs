@@ -4,30 +4,20 @@
     <meta charset="UTF-8">
     <title>لوحة الإدارة | WassitDZ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <style>body { background: #f8fafc; padding: 40px 0; }</style>
+    <style>body { background: #f8fafc; padding: 30px; }</style>
 </head>
 <body>
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold">لوحة تحكم المتجر</h4>
-        <a href="/" class="btn btn-sm btn-outline-secondary">عرض المتجر</a>
-    </div>
-
     <div class="card border-0 shadow-sm p-4 mb-4">
-        <h6 class="fw-bold mb-3 text-primary">إعدادات الموقع والألوان</h6>
+        <h5 class="fw-bold mb-3">إعدادات المتجر والروابط</h5>
         <form action="/update-settings" method="POST" class="row g-3">
-            <div class="col-md-9">
-                <label class="small fw-bold">نص الشريط المتحرك</label>
-                <input type="text" name="announcement" class="form-control" value="<%= settings.announcement %>">
-            </div>
-            <div class="col-md-3">
-                <label class="small fw-bold">لون الموقع الرئيسي</label>
-                <input type="color" name="themeColor" class="form-control form-control-color w-100" value="<%= settings.themeColor %>">
-            </div>
-            <div class="col-md-4"><input type="text" name="supportLink" class="form-control" value="<%= settings.supportLink %>" placeholder="رابط الدعم"></div>
-            <div class="col-md-4"><input type="text" name="mediationLink" class="form-control" value="<%= settings.mediationLink %>" placeholder="رابط الوساطة"></div>
-            <div class="col-md-4"><input type="text" name="sellAccountLink" class="form-control" value="<%= settings.sellAccountLink %>" placeholder="رابط بيع حساب"></div>
-            <div class="col-12 text-end"><button class="btn btn-dark">حفظ الإعدادات</button></div>
+            <div class="col-md-9"><label class="small fw-bold">نص الإشهار</label><input type="text" name="announcement" class="form-control" value="<%= settings.announcement %>"></div>
+            <div class="col-md-3"><label class="small fw-bold">لون الموقع</label><input type="color" name="themeColor" class="form-control form-control-color w-100" value="<%= settings.themeColor %>"></div>
+            <div class="col-md-3"><label class="small fw-bold">رابط الدعم</label><input type="text" name="supportLink" class="form-control" value="<%= settings.supportLink %>"></div>
+            <div class="col-md-3"><label class="small fw-bold">رابط الوساطة</label><input type="text" name="mediationLink" class="form-control" value="<%= settings.mediationLink %>"></div>
+            <div class="col-md-3"><label class="small fw-bold">رابط بيع حسابك</label><input type="text" name="sellAccountLink" class="form-control" value="<%= settings.sellAccountLink %>"></div>
+            <div class="col-md-3"><label class="small fw-bold">رابط شراء الآن</label><input type="text" name="buyNowLink" class="form-control" value="<%= settings.buyNowLink %>"></div>
+            <div class="col-12 text-end"><button class="btn btn-dark px-4">حفظ الإعدادات</button></div>
         </form>
     </div>
 
@@ -58,12 +48,7 @@
                     <thead><tr><th>ID</th><th>العنوان</th><th>السعر</th><th>-</th></tr></thead>
                     <tbody>
                         <% accounts.forEach(acc => { %>
-                        <tr>
-                            <td>#<%= acc.id %></td>
-                            <td><%= acc.title %></td>
-                            <td><%= acc.priceDZ %> د.ج</td>
-                            <td><a href="/delete/<%= acc.id %>" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></a></td>
-                        </tr>
+                        <tr><td>#<%= acc.id %></td><td><%= acc.title %></td><td><%= acc.priceDZ %> د.ج</td><td><a href="/delete/<%= acc.id %>" class="btn btn-sm btn-danger">حذف</a></td></tr>
                         <% }) %>
                     </tbody>
                 </table>
