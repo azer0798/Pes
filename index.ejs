@@ -3,37 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WassitDZ Game | متجر eFootball</title>
+    <title>WassitDZ Game | متجر الحسابات</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #0b0f1a; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
-        .hero { background: linear-gradient(135deg, #1e293b 0%, #0b0f1a 100%); padding: 30px 0; border-bottom: 2px solid #3b82f6; }
-        .card-pes { background: #161e2e; border: 1px solid #2d3748; border-radius: 15px; overflow: hidden; transition: 0.3s; }
-        .card-pes:hover { transform: translateY(-5px); border-color: #3b82f6; }
-        .price { font-size: 1.5rem; color: #10b981; font-weight: 800; }
-        .btn-buy { background-color: #0088cc; border: none; font-weight: bold; border-radius: 10px; width: 100%; }
-        .acc-id { color: #3b82f6; background: rgba(59, 130, 246, 0.1); padding: 2px 8px; border-radius: 5px; font-size: 0.8rem; font-weight: bold; }
-        .carousel-item img { height: 220px; object-fit: cover; }
-        .featured-tag { position: absolute; top: 10px; right: 10px; background: #fbbf24; color: #000; padding: 2px 10px; border-radius: 5px; font-weight: bold; font-size: 0.75rem; z-index: 10; }
+        :root { --primary: #3b82f6; --dark-bg: #0f172a; --card-bg: #1e293b; --accent: #22c55e; }
+        body { background-color: var(--dark-bg); color: #f1f5f9; font-family: 'Segoe UI', sans-serif; }
+        .hero { padding: 40px 0; border-bottom: 1px solid #334155; margin-bottom: 20px; }
+        .logo-text { font-size: 2.5rem; font-weight: 900; color: #fff; text-shadow: 0 0 15px rgba(59,130,246,0.5); }
+        
+        .service-bar { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
+        .btn-service { background: var(--card-bg); border: 1px solid #334155; color: #fff; padding: 12px 20px; border-radius: 12px; transition: 0.3s; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .btn-service:hover { background: var(--primary); transform: translateY(-3px); color: #white; border-color: var(--primary); }
+
+        .card-pes { background: var(--card-bg); border: 1px solid #334155; border-radius: 20px; overflow: hidden; transition: 0.4s; height: 100%; }
+        .card-pes:hover { border-color: var(--primary); box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
+        .carousel-item img { height: 210px; object-fit: cover; }
+        
+        .badge-link { background: #475569; color: #e2e8f0; font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; }
+        .badge-id { color: var(--primary); font-weight: bold; font-size: 0.8rem; }
+        .price-tag { font-size: 1.5rem; color: var(--accent); font-weight: 800; }
+        .btn-buy { background: var(--primary); border: none; padding: 10px; border-radius: 12px; font-weight: 700; width: 100%; color: white; transition: 0.3s; text-decoration: none; display: block; text-align: center; }
+        .btn-buy:hover { background: #2563eb; transform: scale(1.02); color: white; }
+        
+        .featured-tag { position: absolute; top: 12px; right: 12px; background: #f59e0b; color: #000; padding: 3px 10px; border-radius: 6px; font-weight: 900; z-index: 10; font-size: 0.75rem; }
     </style>
 </head>
 <body>
 
-<header class="hero text-center mb-4">
+<header class="hero text-center">
     <div class="container">
-        <h1 class="fw-bold"><i class="fas fa-gamepad text-info"></i> WassitDZ Game</h1>
-        <p class="text-secondary small">رقم #1 في الجزائر لبيع حسابات eFootball</p>
+        <h1 class="logo-text">WASSITDZ GAME</h1>
+        <p class="text-secondary">متجرك الموثوق لتطوير وتداول حسابات eFootball</p>
     </div>
 </header>
 
-<div class="container mb-5">
-    <div class="row g-4">
+<div class="container">
+    <div class="service-bar">
+        <a href="<%= settings.supportLink %>" class="btn-service"><i class="fas fa-headset text-info"></i> الدعم الفني</a>
+        <a href="<%= settings.mediationLink %>" class="btn-service"><i class="fas fa-shield-alt text-warning"></i> خدمة الوساطة</a>
+        <a href="<%= settings.sellAccountLink %>" class="btn-service"><i class="fas fa-hand-holding-usd text-success"></i> بيع حسابك لنا</a>
+    </div>
+
+    <div class="row g-4 mb-5">
         <% accounts.forEach(acc => { %>
-        <div class="col-md-4">
-            <div class="card card-pes h-100">
-                <% if(acc.featured) { %> <span class="featured-tag">🔥 عرض ممتاز</span> <% } %>
-                
+        <div class="col-md-4 col-sm-6">
+            <div class="card card-pes position-relative">
+                <% if(acc.featured) { %> <div class="featured-tag">مميز ✨</div> <% } %>
+
                 <div id="slider-<%= acc.id %>" class="carousel slide" data-bs-ride="false">
                     <div class="carousel-inner">
                         <% acc.imgs.forEach((img, index) => { %>
@@ -43,25 +60,24 @@
                         <% }) %>
                     </div>
                     <% if(acc.imgs.length > 1) { %>
-                    <button class="carousel-control-prev" type="button" data-bs-target="#slider-<%= acc.id %>" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#slider-<%= acc.id %>" data-bs-slide="next">
-                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    </button>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#slider-<%= acc.id %>" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#slider-<%= acc.id %>" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
                     <% } %>
                 </div>
 
                 <div class="card-body d-flex flex-column">
-                    <div class="mb-2"><span class="acc-id">ID: #<%= acc.id %></span></div>
-                    <h5 class="card-title fw-bold text-white"><%= acc.title %></h5>
-                    <p class="text-secondary small flex-grow-1"><%= acc.players %></p>
-                    <div class="mt-3">
-                        <div class="text-center mb-2"><span class="price">$<%= acc.price %></span></div>
-                        <a href="https://t.me/zedx07?text=<%= encodeURIComponent('السلام عليكم WassitDZ Game، أريد شراء الحساب رقم: #' + acc.id) %>" 
-                           class="btn btn-buy text-white py-2">
-                            شراء الآن
-                        </a>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge-id">ID: #<%= acc.id %></span>
+                        <span class="badge-link"><i class="fas fa-link me-1"></i> <%= acc.linkType %></span>
+                    </div>
+                    <h5 class="fw-bold mb-1 text-white"><%= acc.title %></h5>
+                    <p class="text-secondary small mb-3"><%= acc.players %></p>
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <span class="price-tag">$<%= acc.price %></span>
+                        <div style="width: 50%;">
+                            <a href="https://t.me/zedx07?text=<%= encodeURIComponent('السلام عليكم WassitDZ، أريد شراء الحساب رقم: #' + acc.id) %>" 
+                               class="btn btn-buy">شراء</a>
+                        </div>
                     </div>
                 </div>
             </div>
