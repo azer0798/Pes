@@ -7,7 +7,6 @@ const fs = require('fs');
 
 const app = express();
 
-// إعداد رفع الصور
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = './uploads';
@@ -21,7 +20,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.use(session({
-    secret: 'wassitdz_ultra_2026',
+    secret: 'wassitdz_2026_web',
     resave: false,
     saveUninitialized: true
 }));
@@ -31,13 +30,12 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// مخزن البيانات والإعدادات
 let accounts = []; 
 let siteSettings = {
     supportLink: "https://t.me/zedx07",
     mediationLink: "https://t.me/zedx07",
     sellAccountLink: "https://t.me/zedx07",
-    announcement: "مرحباً بكم في WassitDZ Game - أفضل العروض والوساطة المضمونة متوفرة الآن!"
+    announcement: "مرحباً بكم في WassitDZ Game - نشتري ونبيع حسابات eFootball بأفضل الأسعار!"
 };
 
 const ADMIN_USER = "admin";
@@ -54,7 +52,7 @@ app.post('/login', (req, res) => {
         req.session.isAdmin = true;
         res.redirect('/admin-panel');
     } else {
-        res.send("<script>alert('خطأ!'); window.location='/login';</script>");
+        res.send("<script>alert('البيانات خاطئة'); window.location='/login';</script>");
     }
 });
 
@@ -64,7 +62,7 @@ app.get('/admin-panel', (req, res) => {
 });
 
 app.post('/update-settings', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
+    if (!req.session.isAdmin) return res.status(403).send("Unauthorized");
     siteSettings.supportLink = req.body.supportLink;
     siteSettings.mediationLink = req.body.mediationLink;
     siteSettings.sellAccountLink = req.body.sellAccountLink;
@@ -73,15 +71,14 @@ app.post('/update-settings', (req, res) => {
 });
 
 app.post('/add-account', upload.array('imageFiles', 5), (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
+    if (!req.session.isAdmin) return res.status(403).send("Unauthorized");
     const imagePaths = req.files.map(file => '/uploads/' + file.filename);
     const newAcc = {
         id: Math.floor(1000 + Math.random() * 9000),
         title: req.body.title,
-        price: req.body.price,
+        price: parseFloat(req.body.price),
         players: req.body.players,
         linkType: req.body.linkType,
-        featured: req.body.featured === 'on',
         imgs: imagePaths.length > 0 ? imagePaths : ['https://via.placeholder.com/400x225']
     };
     accounts.push(newAcc);
@@ -89,14 +86,9 @@ app.post('/add-account', upload.array('imageFiles', 5), (req, res) => {
 });
 
 app.get('/delete/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
+    if (!req.session.isAdmin) return res.status(403).send("Unauthorized");
     accounts = accounts.filter(acc => acc.id != req.params.id);
     res.redirect('/admin-panel');
-});
-
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
 });
 
 const PORT = process.env.PORT || 3000;
