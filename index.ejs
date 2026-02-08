@@ -3,169 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WassitDZ Game</title>
+    <title>WassitDZ Game | المتجر الرسمي</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg: #ffffff;
-            --text: #111827;
-            --accent: #2563eb;
-            --border: #e5e7eb;
-            --muted: #6b7280;
-        }
+        :root { --primary: <%= settings.themeColor %>; --text: #111827; --border: #e5e7eb; }
+        body { background: #ffffff; color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding-top: 40px; }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            margin: 0;
-            padding-top: 40px; /* مسافة للشريط الثابت */
-        }
-
-        /* شريط إشهاري ثابت يتحرك من اليسار لليمين */
+        /* الشريط الإشهاري الثابت */
         .announcement-bar {
-            background: var(--text);
-            color: white;
-            height: 40px;
-            line-height: 40px;
-            font-size: 13px;
-            overflow: hidden;
-            white-space: nowrap;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 2000;
+            background: #111827; color: #ffffff; height: 40px; line-height: 40px; 
+            font-size: 13px; position: fixed; top: 0; width: 100%; z-index: 2000; overflow: hidden;
         }
-        .ticker-move {
-            display: inline-block;
-            animation: ticker-ltr 25s linear infinite;
-        }
-        @keyframes ticker-ltr {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
+        .ticker { display: inline-block; animation: ticker-ltr 25s linear infinite; white-space: nowrap; }
+        @keyframes ticker-ltr { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-        .navbar {
-            background: rgba(255,255,255,0.9);
-            backdrop-filter: blur(8px);
-            border-bottom: 1px solid var(--border);
-            padding: 20px 0;
-            position: sticky;
-            top: 40px; /* يلتصق تحت شريط الإشهار */
-            z-index: 1000;
+        /* الهيدر الموسط */
+        .navbar { 
+            border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.9); 
+            backdrop-filter: blur(10px); position: sticky; top: 40px; z-index: 1000; padding: 15px 0;
         }
-        .navbar-brand { font-weight: 800; font-size: 1.5rem; color: var(--text) !important; }
+        .navbar-brand { font-weight: 900; font-size: 1.8rem; color: var(--primary) !important; margin: 0 auto; text-transform: uppercase; }
 
-        .service-nav { display: flex; justify-content: center; gap: 15px; margin: 30px 0; flex-wrap: wrap; }
-        .btn-service {
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 8px 20px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 600;
-            transition: 0.2s;
+        .service-nav { display: flex; justify-content: center; gap: 10px; margin: 25px 0; flex-wrap: wrap; }
+        .btn-service { 
+            border: 1px solid var(--border); color: var(--text); padding: 8px 18px; 
+            border-radius: 50px; text-decoration: none; font-size: 14px; transition: 0.2s; font-weight: 600;
         }
-        .btn-service:hover { border-color: var(--accent); background: #f9fafb; }
+        .btn-service:hover { border-color: var(--primary); color: var(--primary); background: #f9fafb; }
 
-        .filter-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
-            border-bottom: 1px solid var(--border);
-        }
-        .sort-link {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 14px;
-            margin-right: 15px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .sort-link:hover { color: var(--accent); }
-
-        .account-card {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            transition: 0.3s;
-            height: 100%;
-        }
-        .account-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        .carousel-item img { height: 220px; object-fit: cover; border-radius: 12px 12px 0 0; }
+        /* كرت الحساب */
+        .account-card { border: 1px solid var(--border); border-radius: 15px; overflow: hidden; transition: 0.3s; background: #fff; height: 100%; }
+        .account-card:hover { border-color: var(--primary); transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .carousel-item img { height: 210px; object-fit: cover; }
         
-        .card-body { padding: 20px; }
-        .price { font-size: 1.4rem; font-weight: 800; color: #16a34a; }
-        .btn-buy {
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: 700;
-            text-decoration: none;
-            display: block;
-            text-align: center;
+        .price-dz { font-size: 1.4rem; font-weight: 800; color: #16a34a; display: block; margin-bottom: 2px; }
+        .price-us { font-size: 0.9rem; color: #64748b; font-weight: 600; }
+        
+        .btn-buy { 
+            background: var(--primary); color: #fff; border: none; width: 100%; 
+            padding: 12px; border-radius: 10px; font-weight: 700; text-decoration: none; display: block; text-align: center; transition: 0.2s;
         }
+        .btn-buy:hover { opacity: 0.9; color: #fff; }
+
+        /* التذييل */
+        footer { padding: 50px 0; border-top: 1px solid var(--border); text-align: center; margin-top: 60px; background: #fafafa; }
+        .footer-logo { font-size: 1.5rem; font-weight: 900; color: var(--text); margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-<div class="announcement-bar">
-    <div class="ticker-move">
-        🔥 <%= settings.announcement %> &nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp; WassitDZ Game: جودة وأمان
-    </div>
+<div class="announcement-bar text-center">
+    <div class="ticker"><i class="fas fa-bullhorn me-2"></i> <%= settings.announcement %> &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp; WassitDZ Game ⚡</div>
 </div>
 
 <nav class="navbar">
-    <div class="container text-center">
-        <a class="navbar-brand" href="/">WASSITDZ GAME</a>
-    </div>
+    <div class="container d-flex"><a class="navbar-brand" href="/">WASSITDZ GAME</a></div>
 </nav>
 
-<div class="container">
+<div class="container mt-2">
     <div class="service-nav">
         <a href="<%= settings.supportLink %>" class="btn-service">الدعم الفني</a>
-        <a href="<%= settings.mediationLink %>" class="btn-service">الوساطة</a>
-        <a href="<%= settings.sellAccountLink %>" class="btn-service">بيع حسابك</a>
+        <a href="<%= settings.mediationLink %>" class="btn-service">الوساطة المضمونة</a>
+        <a href="<%= settings.sellAccountLink %>" class="btn-service">بيع حسابك لنا</a>
     </div>
 
-    <div class="filter-bar">
-        <span class="fw-bold">الحسابات</span>
-        <div>
-            <a class="sort-link" onclick="sort(1)">الأرخص</a>
-            <a class="sort-link" onclick="sort(-1)">الأغلى</a>
-        </div>
-    </div>
-
-    <div class="row g-4" id="grid">
+    <div class="row g-4">
         <% accounts.forEach(acc => { %>
-        <div class="col-md-4 item" data-price="<%= acc.price %>">
+        <div class="col-md-4 col-sm-6">
             <div class="account-card">
-                <div id="c-<%= acc.id %>" class="carousel slide">
+                <div id="c-<%= acc.id %>" class="carousel slide" data-bs-ride="false">
                     <div class="carousel-inner">
                         <% acc.imgs.forEach((img, i) => { %>
-                        <div class="carousel-item <%= i==0?'active':'' %>">
-                            <img src="<%= img %>" class="d-block w-100">
-                        </div>
+                        <div class="carousel-item <%= i==0?'active':'' %>"><img src="<%= img %>" class="d-block w-100"></div>
                         <% }) %>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <small class="text-muted">#<%= acc.id %></small>
-                        <span class="badge bg-light text-dark shadow-sm"><%= acc.linkType %></span>
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between mb-2 small">
+                        <span class="text-muted fw-bold">ID: #<%= acc.id %></span>
+                        <span class="badge bg-light text-dark border"><%= acc.linkType %></span>
                     </div>
-                    <h6 class="fw-bold"><%= acc.title %></h6>
-                    <p class="small text-muted text-truncate"><%= acc.players %></p>
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <span class="price">$<%= acc.price %></span>
-                        <a href="https://t.me/zedx07?text=<%= encodeURIComponent('شراء حساب #' + acc.id) %>" class="btn btn-buy px-4">شراء</a>
+                    <h5 class="fw-bold mb-2"><%= acc.title %></h5>
+                    <p class="small text-muted mb-4 text-truncate"><%= acc.players %></p>
+                    
+                    <div class="mb-4">
+                        <span class="price-dz"><%= acc.priceDZ %> د.ج</span>
+                        <span class="price-us">$<%= acc.priceUSD %> (Binance/USDT)</span>
                     </div>
+                    <a href="https://t.me/zedx07?text=<%= encodeURIComponent('طلب شراء حساب رقم: #' + acc.id) %>" class="btn btn-buy">شراء الحساب الآن</a>
                 </div>
             </div>
         </div>
@@ -173,14 +99,14 @@
     </div>
 </div>
 
-<script>
-    function sort(dir) {
-        const grid = document.getElementById('grid');
-        const items = Array.from(grid.getElementsByClassName('item'));
-        items.sort((a,b) => (parseFloat(a.dataset.price) - parseFloat(b.dataset.price)) * dir);
-        items.forEach(i => grid.appendChild(i));
-    }
-</script>
+<footer>
+    <div class="container">
+        <div class="footer-logo"><i class="fas fa-gamepad me-2"></i> WASSITDZ GAME</div>
+        <p class="text-muted mb-1">جميع الحقوق محفوظة © 2026</p>
+        <div class="small text-muted">منصتكم الموثوقة لتداول الحسابات في الجزائر</div>
+    </div>
+</footer>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
