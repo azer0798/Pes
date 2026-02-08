@@ -7,7 +7,6 @@ const fs = require('fs');
 
 const app = express();
 
-// إعداد رفع الصور
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = './uploads';
@@ -21,7 +20,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.use(session({
-    secret: 'wassitdz_ultra_2026',
+    secret: 'wassitdz_final_2026',
     resave: false,
     saveUninitialized: true
 }));
@@ -31,12 +30,12 @@ app.set('view engine', 'ejs');
 app.set('views', __dirname);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// مخزن البيانات والإعدادات
 let accounts = []; 
 let siteSettings = {
     supportLink: "https://t.me/zedx07",
     mediationLink: "https://t.me/zedx07",
     sellAccountLink: "https://t.me/zedx07",
+    buyNowLink: "https://t.me/zedx07",
     announcement: "مرحباً بكم في WassitDZ Game - متجركم الأول لتداول حسابات eFootball في الجزائر",
     themeColor: "#2563eb"
 };
@@ -55,7 +54,7 @@ app.post('/login', (req, res) => {
         req.session.isAdmin = true;
         res.redirect('/admin-panel');
     } else {
-        res.send("<script>alert('البيانات خاطئة!'); window.location='/login';</script>");
+        res.send("<script>alert('خطأ!'); window.location='/login';</script>");
     }
 });
 
@@ -69,6 +68,7 @@ app.post('/update-settings', (req, res) => {
     siteSettings.supportLink = req.body.supportLink;
     siteSettings.mediationLink = req.body.mediationLink;
     siteSettings.sellAccountLink = req.body.sellAccountLink;
+    siteSettings.buyNowLink = req.body.buyNowLink;
     siteSettings.announcement = req.body.announcement;
     siteSettings.themeColor = req.body.themeColor;
     res.redirect('/admin-panel');
@@ -97,4 +97,4 @@ app.get('/delete/:id', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`WassitDZ Server started on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
