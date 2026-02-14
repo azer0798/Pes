@@ -1,100 +1,63 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const http = require('http');
+const mongoose = require('mongoose');
+const { Server } = require('socket.io');
 const session = require('express-session');
 const path = require('path');
-const multer = require('multer');
-const fs = require('fs');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = './uploads';
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
-const upload = multer({ storage: storage });
-
-app.use(session({
-    secret: 'wassitdz_final_2026',
-    resave: false,
-    saveUninitialized: true
-}));
-
-app.use(bodyParser.urlencoded({ extended: true }));
+// إعدادات EJS (بما أن الملفات في الجذر)
 app.set('view engine', 'ejs');
 app.set('views', __dirname);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.urlencoded({ extended: true }));
+app.use(session({ secret: process.env.SESSION_SECRET || 'secret-key', resave: false, saveUninitialized: true }));
 
-let accounts = []; 
-let siteSettings = {
-    supportLink: "https://t.me/zedx07",
-    mediationLink: "https://t.me/zedx07",
-    sellAccountLink: "https://t.me/zedx07",
-    buyNowLink: "https://t.me/zedx07",
-    announcement: "مرحباً بكم في WassitDZ Game - متجركم الأول لتداول حسابات eFootball في الجزائر",
-    themeColor: "#2563eb"
-};
+// الاتصال بـ MongoDB
+mongoose.connect(process.env.MONGODB_URL)
+  .then(() => console.log("Connected to MongoDB Atlas"))
+  .catch(err => console.error(err));
 
-const ADMIN_USER = "admin";
-const ADMIN_PASS = "pes2026";
-
-app.get('/', (req, res) => {
-    res.render('index', { accounts: accounts, settings: siteSettings });
+// تعريف المستخدم (User Schema)
+const userSchema = new mongoose.Schema({
+    username: String,
+    isAdmin: { type: Boolean, default: false },
+    isApproved: { type: Boolean, default: false } // التحكم في الدخول
 });
+const User = mongoose.model('User', userSchema);
 
-app.get('/login', (req, res) => res.render('login'));
+// المسارات (Routes)
+app.get('/', (req, res) => res.render('login'));
 
-app.post('/login', (req, res) => {
-    if (req.body.username === ADMIN_USER && req.body.password === ADMIN_PASS) {
-        req.session.isAdmin = true;
-        res.redirect('/admin-panel');
+app.get('/chat', async (req, res) => {
+    // هنا نتأكد إذا كان المستخدم مسموح له بالدردشة
+    const user = await User.findOne({ username: req.session.username });
+    if (user && user.isApproved) {
+        res.render('index', { user });
     } else {
-        res.send("<script>alert('خطأ!'); window.location='/login';</script>");
+        res.render('blocked');
     }
 });
 
-app.get('/admin-panel', (req, res) => {
-    if (!req.session.isAdmin) return res.redirect('/login');
-    res.render('admin', { accounts: accounts, settings: siteSettings });
+app.get('/admin', async (req, res) => {
+    const users = await User.find();
+    res.render('admin', { users });
 });
 
-app.post('/update-settings', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
-    siteSettings.supportLink = req.body.supportLink;
-    siteSettings.mediationLink = req.body.mediationLink;
-    siteSettings.sellAccountLink = req.body.sellAccountLink;
-    siteSettings.buyNowLink = req.body.buyNowLink;
-    siteSettings.announcement = req.body.announcement;
-    siteSettings.themeColor = req.body.themeColor;
-    res.redirect('/admin-panel');
+// تفعيل المستخدم من لوحة التحكم
+app.post('/approve/:id', async (req, res) => {
+    await User.findByIdAndUpdate(req.params.id, { isApproved: true });
+    res.redirect('/admin');
 });
 
-app.post('/add-account', upload.array('imageFiles', 5), (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
-    const imagePaths = req.files.map(file => '/uploads/' + file.filename);
-    const newAcc = {
-        id: Math.floor(1000 + Math.random() * 9000),
-        title: req.body.title,
-        priceUSD: req.body.priceUSD,
-        priceDZ: req.body.priceDZ,
-        players: req.body.players,
-        linkType: req.body.linkType,
-        imgs: imagePaths.length > 0 ? imagePaths : ['https://via.placeholder.com/400x225']
-    };
-    accounts.push(newAcc);
-    res.redirect('/admin-panel');
-});
-
-app.get('/delete/:id', (req, res) => {
-    if (!req.session.isAdmin) return res.status(403).send("Forbidden");
-    accounts = accounts.filter(acc => acc.id != req.params.id);
-    res.redirect('/admin-panel');
+// Socket.io للتواصل الفوري
+io.on('connection', (socket) => {
+    socket.on('chat message', (msg) => {
+        io.emit('chat message', msg);
+    });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
