@@ -1,7 +1,7 @@
 {
-  "name": "wassitdz-game-v2",
-  "version": "2.0.0",
-  "description": "Professional Store for eFootball Accounts",
+  "name": "safenode-chat",
+  "version": "1.0.0",
+  "description": "Private Chat System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,8 +9,12 @@
   "dependencies": {
     "express": "^4.18.2",
     "ejs": "^3.1.9",
-    "body-parser": "^1.20.2",
+    "mongoose": "^7.0.0",
+    "socket.io": "^4.6.1",
+    "cloudinary": "^1.35.0",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "express-session": "^1.17.3",
-    "multer": "^1.4.5-lts.1"
+    "bcrypt": "^5.1.0"
   }
 }
