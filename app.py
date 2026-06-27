@@ -4,7 +4,8 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your_strong_secret_key' # غيره لمفتاح سري
+# استخدم مفتاحاً سرياً ثابتاً في الإنتاج، أو متغير بيئة
+app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
 db = SQLAlchemy(app)
 
@@ -13,7 +14,8 @@ class Post(db.Model):
     content = db.Column(db.Text, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
-with app.app_context(): db.create_all()
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -23,7 +25,7 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if request.form['password'] == '1234': # كلمة المرور هنا
+        if request.form['password'] == '1234':
             session['admin'] = True
             return redirect(url_for('index'))
     return render_template_string('<form method="POST">كلمة السر: <input type="password" name="password"><button>دخول</button></form>')
@@ -38,8 +40,10 @@ def add():
 @app.route('/delete/<int:id>', methods=['POST'])
 def delete(id):
     if not session.get('admin'): return "غير مصرح لك", 403
-    db.session.delete(Post.query.get(id))
-    db.session.commit()
+    post = Post.query.get(id)
+    if post:
+        db.session.delete(post)
+        db.session.commit()
     return redirect(url_for('index'))
 
 @app.route('/logout')
@@ -47,4 +51,7 @@ def logout():
     session.pop('admin', None)
     return redirect(url_for('index'))
 
-if __name__ == '__main__': app.run(debug=True)
+if __name__ == '__main__':
+    # التعديل الهام للعمل على Render
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
