@@ -23,7 +23,7 @@
         }
         
         .container-admin {
-            max-width: 800px;
+            max-width: 850px;
             margin: 0 auto;
         }
         
@@ -90,7 +90,53 @@
             color: white;
         }
         
-        /* لوحة الإضافة */
+        /* إحصائيات */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-3px);
+        }
+        
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+        }
+        
+        .stat-card .label {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+        
+        .stat-card .icon {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card.color-purple .icon { color: #a29bfe; }
+        .stat-card.color-pink .icon { color: #fd79a8; }
+        .stat-card.color-green .icon { color: #55efc4; }
+        .stat-card.color-orange .icon { color: #fdcb6e; }
+        .stat-card.color-red .icon { color: #ff7675; }
+        
         .panel-admin {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(15px);
@@ -176,7 +222,6 @@
             color: white;
         }
         
-        /* بطاقات التدوينات */
         .post-admin {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -219,9 +264,24 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid rgba(255, 255, 255, 0.06);
+            gap: 10px;
+        }
+        
+        .post-stats-admin {
+            display: flex;
+            gap: 15px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.85rem;
+        }
+        
+        .post-stats-admin span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         
         .post-date-admin {
@@ -273,15 +333,11 @@
         }
         
         @media (max-width: 576px) {
-            .header-admin {
-                padding: 20px;
-            }
-            .logo-admin {
-                font-size: 1.4rem;
-            }
-            .post-admin {
-                padding: 20px;
-            }
+            .header-admin { padding: 20px; }
+            .logo-admin { font-size: 1.4rem; }
+            .post-admin { padding: 20px; }
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
+            .stat-card .number { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -305,6 +361,35 @@
                 <a href="/logout" class="btn-admin-action btn-admin-action-danger ms-2">
                     <i class="bi bi-box-arrow-right"></i> خروج
                 </a>
+            </div>
+        </div>
+
+        <!-- إحصائيات -->
+        <div class="stats-grid">
+            <div class="stat-card color-purple">
+                <span class="icon"><i class="bi bi-journal-text"></i></span>
+                <div class="number">{{ stats.total_posts }}</div>
+                <div class="label">إجمالي التدوينات</div>
+            </div>
+            <div class="stat-card color-pink">
+                <span class="icon"><i class="bi bi-chat-dots"></i></span>
+                <div class="number">{{ stats.total_comments }}</div>
+                <div class="label">إجمالي التعليقات</div>
+            </div>
+            <div class="stat-card color-green">
+                <span class="icon"><i class="bi bi-heart"></i></span>
+                <div class="number">{{ stats.total_likes }}</div>
+                <div class="label">إجمالي الإعجابات</div>
+            </div>
+            <div class="stat-card color-orange">
+                <span class="icon"><i class="bi bi-people"></i></span>
+                <div class="number">{{ stats.total_visitors }}</div>
+                <div class="label">إجمالي الزوار</div>
+            </div>
+            <div class="stat-card color-red">
+                <span class="icon"><i class="bi bi-person-check"></i></span>
+                <div class="number">{{ stats.online_visitors }}</div>
+                <div class="label">متصلون الآن</div>
             </div>
         </div>
 
@@ -348,7 +433,7 @@
 
         <!-- قائمة التدوينات -->
         <h5 style="color: rgba(255,255,255,0.5); margin-bottom: 20px;">
-            <i class="bi bi-list-ul"></i> جميع التدوينات
+            <i class="bi bi-list-ul"></i> جميع التدوينات ({{ posts|length }})
         </h5>
         
         {% if posts %}
@@ -364,16 +449,22 @@
                         <img src="/static/{{ post.image }}" alt="صورة التدوينة">
                     {% endif %}
                     <div class="post-meta-admin">
-                        <span class="post-date-admin">
-                            <i class="bi bi-clock"></i> 
-                            {{ post.date.strftime('%Y-%m-%d %H:%M') }}
-                        </span>
-                        <form action="/delete/{{ post.id }}" method="POST" class="m-0">
-                            <button class="btn-delete" 
-                                    onclick="return confirm('هل أنت متأكد من حذف هذه التدوينة؟')">
-                                <i class="bi bi-trash"></i> حذف
-                            </button>
-                        </form>
+                        <div class="post-stats-admin">
+                            <span><i class="bi bi-eye"></i> {{ post.views }}</span>
+                            <span><i class="bi bi-heart"></i> {{ post.likes }}</span>
+                            <span><i class="bi bi-chat"></i> {{ post.comments|length }}</span>
+                        </div>
+                        <div>
+                            <span class="post-date-admin">
+                                <i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                            <form action="/delete/{{ post.id }}" method="POST" class="m-0 d-inline">
+                                <button class="btn-delete" 
+                                        onclick="return confirm('هل أنت متأكد من حذف هذه التدوينة؟')">
+                                    <i class="bi bi-trash"></i> حذف
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
