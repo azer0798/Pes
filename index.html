@@ -32,13 +32,11 @@
             margin: 0 auto;
         }
         
-        /* Header */
         .header-public {
             padding-bottom: 25px;
             border-bottom: 1px solid #e9ecef;
             margin-bottom: 30px;
             text-align: center;
-            position: relative;
         }
         
         .logo-public {
@@ -57,7 +55,7 @@
             margin-top: 5px;
         }
         
-        /* ========== القائمة المنسدلة ========== */
+        /* القائمة المنسدلة */
         .nav-menu {
             margin-top: 15px;
             display: flex;
@@ -85,10 +83,6 @@
             color: #6c63ff;
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(108, 99, 255, 0.15);
-        }
-        
-        .dropdown-custom .btn-dropdown i {
-            font-size: 1.1rem;
         }
         
         .dropdown-menu-custom {
@@ -124,27 +118,21 @@
             transform: translateX(-5px);
         }
         
-        .dropdown-menu-custom .dropdown-item .item-icon {
-            display: inline-block;
-        }
-        
-        /* ألوان خاصة لكل أيقونة */
         .dropdown-item .icon-cities { color: #4ecdc4; }
         .dropdown-item .icon-experience { color: #ff6b6b; }
         .dropdown-item .icon-moments { color: #feca57; }
         .dropdown-item .icon-memories { color: #a29bfe; }
         .dropdown-item .icon-dates { color: #fd79a8; }
         
-        /* ========== نهاية القائمة ========== */
-        
-        /* Post Cards */
+        /* بطاقات التدوينات */
         .post-public {
             background: white;
             border-radius: 16px;
-            padding: 30px;
+            padding: 25px;
             margin-bottom: 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             border: 1px solid #e9ecef;
+            border-right: 4px solid #6c63ff;
             transition: all 0.3s ease;
         }
         
@@ -153,17 +141,34 @@
             transform: translateY(-2px);
         }
         
+        .post-public .post-category {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
         .post-content-public {
             font-size: 1.1rem;
             line-height: 1.9;
             color: #2d3748;
         }
         
+        .post-public img {
+            max-width: 100%;
+            border-radius: 12px;
+            margin-top: 12px;
+            max-height: 400px;
+            object-fit: cover;
+        }
+        
         .post-meta-public {
             display: flex;
             justify-content: flex-end;
-            margin-top: 20px;
-            padding-top: 20px;
+            margin-top: 15px;
+            padding-top: 15px;
             border-top: 1px solid #f1f3f5;
         }
         
@@ -172,7 +177,6 @@
             font-size: 0.85rem;
         }
         
-        /* Empty State */
         .empty-public {
             text-align: center;
             padding: 60px 20px;
@@ -195,7 +199,6 @@
             color: #868e96;
         }
         
-        /* Footer */
         .footer-public {
             text-align: center;
             padding: 25px 20px;
@@ -225,31 +228,13 @@
             color: #6c63ff;
         }
         
-        /* Responsive */
         @media (max-width: 576px) {
-            .wrapper {
-                padding: 20px 15px;
-            }
-            .post-public {
-                padding: 20px;
-            }
-            .logo-public {
-                font-size: 2rem;
-            }
-            .footer-public {
-                padding: 20px 15px;
-            }
-            .footer-public .footer-content {
-                font-size: 0.8rem;
-            }
-            .nav-menu {
-                flex-direction: column;
-                align-items: center;
-            }
-            .dropdown-custom .btn-dropdown {
-                width: 100%;
-                justify-content: center;
-            }
+            .wrapper { padding: 20px 15px; }
+            .post-public { padding: 20px; }
+            .logo-public { font-size: 2rem; }
+            .footer-public { padding: 20px 15px; }
+            .nav-menu { flex-direction: column; align-items: center; }
+            .dropdown-custom .btn-dropdown { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -265,7 +250,7 @@
                 </h1>
                 <p class="logo-sub">📖 أفكار، إلهام، وحياة</p>
                 
-                <!-- ========== القائمة المنسدلة ========== -->
+                <!-- القائمة المنسدلة -->
                 <div class="nav-menu">
                     <div class="dropdown-custom">
                         <button class="btn-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -274,49 +259,30 @@
                             <i class="bi bi-chevron-down" style="font-size: 0.8rem;"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-custom">
-                            <li>
-                                <a class="dropdown-item" href="/cities">
-                                    <i class="bi bi-geo-alt-fill icon-cities"></i>
-                                    مدن زرتها
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/experience">
-                                    <i class="bi bi-star-fill icon-experience"></i>
-                                    تجربة خاصة
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/moments">
-                                    <i class="bi bi-camera-fill icon-moments"></i>
-                                    لحظات خاصة
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/memories">
-                                    <i class="bi bi-bookmark-fill icon-memories"></i>
-                                    ذكريات
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/dates">
-                                    <i class="bi bi-calendar-event-fill icon-dates"></i>
-                                    تواريخ
-                                </a>
-                            </li>
+                            <li><a class="dropdown-item" href="/cities"><i class="bi bi-geo-alt-fill icon-cities"></i> مدن زرتها</a></li>
+                            <li><a class="dropdown-item" href="/experience"><i class="bi bi-star-fill icon-experience"></i> تجربة خاصة</a></li>
+                            <li><a class="dropdown-item" href="/moments"><i class="bi bi-camera-fill icon-moments"></i> لحظات خاصة</a></li>
+                            <li><a class="dropdown-item" href="/memories"><i class="bi bi-bookmark-fill icon-memories"></i> ذكريات</a></li>
+                            <li><a class="dropdown-item" href="/dates"><i class="bi bi-calendar-event-fill icon-dates"></i> تواريخ</a></li>
                         </ul>
                     </div>
                 </div>
-                <!-- ========== نهاية القائمة ========== -->
             </div>
 
-            <!-- Posts -->
+            <!-- التدوينات -->
             {% if posts %}
                 {% for post in posts %}
-                    <div class="post-public">
+                    <div class="post-public" style="border-right-color: {{ get_category_color(post.category) }};">
+                        <span class="post-category" style="background: {{ get_category_color(post.category) }}20; color: {{ get_category_color(post.category) }};">
+                            <i class="bi {{ get_category_icon(post.category) }}"></i>
+                            {{ get_category_label(post.category) }}
+                        </span>
                         <div class="post-content-public">
                             {{ post.content }}
                         </div>
+                        {% if post.image %}
+                            <img src="/static/{{ post.image }}" alt="صورة التدوينة">
+                        {% endif %}
                         <div class="post-meta-public">
                             <span class="post-date-public">
                                 <i class="bi bi-clock"></i> 
