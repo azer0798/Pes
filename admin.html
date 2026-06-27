@@ -10,17 +10,23 @@
     <style>
         * {
             font-family: 'Cairo', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
         body {
             background: #0f0c29;
             background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             min-height: 100vh;
             padding: 30px 20px;
         }
+        
         .container-admin {
             max-width: 800px;
             margin: 0 auto;
         }
+        
         /* Header */
         .header-admin {
             background: rgba(255, 255, 255, 0.05);
@@ -35,17 +41,20 @@
             flex-wrap: wrap;
             gap: 15px;
         }
+        
         .logo-admin {
             font-size: 1.8rem;
             font-weight: 700;
             color: white;
         }
+        
         .logo-admin span {
             background: linear-gradient(135deg, #f093fb, #f5576c);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+        
         .badge-admin {
             background: rgba(240, 147, 251, 0.2);
             color: #f093fb;
@@ -54,19 +63,34 @@
             font-size: 0.8rem;
             border: 1px solid rgba(240, 147, 251, 0.2);
         }
-        .btn-logout {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
+        
+        .btn-admin-action {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
             padding: 8px 20px;
             border-radius: 30px;
             transition: all 0.3s;
             text-decoration: none;
+            display: inline-block;
         }
-        .btn-logout:hover {
+        
+        .btn-admin-action:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+        
+        .btn-admin-action-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        
+        .btn-admin-action-danger:hover {
             background: rgba(239, 68, 68, 0.25);
             color: white;
         }
+        
         /* Admin Panel */
         .panel-admin {
             background: rgba(255, 255, 255, 0.05);
@@ -76,6 +100,7 @@
             padding: 30px;
             margin-bottom: 30px;
         }
+        
         .panel-admin textarea {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -84,19 +109,23 @@
             padding: 15px;
             transition: all 0.3s;
         }
+        
         .panel-admin textarea:focus {
             background: rgba(255, 255, 255, 0.08);
             border-color: #f093fb;
             box-shadow: 0 0 20px rgba(240, 147, 251, 0.1);
             color: white;
         }
+        
         .panel-admin textarea::placeholder {
-            color: rgba(255,255,255,0.3);
+            color: rgba(255, 255, 255, 0.3);
         }
+        
         .panel-admin label {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255, 255, 255, 0.7);
             font-weight: 600;
         }
+        
         .btn-publish {
             background: linear-gradient(135deg, #f093fb, #f5576c);
             border: none;
@@ -106,11 +135,13 @@
             color: white;
             transition: all 0.3s;
         }
+        
         .btn-publish:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);
             color: white;
         }
+        
         /* Post Cards */
         .post-admin {
             background: rgba(255, 255, 255, 0.05);
@@ -121,15 +152,18 @@
             margin-bottom: 20px;
             transition: all 0.3s;
         }
+        
         .post-admin:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 255, 255, 0.12);
         }
+        
         .post-content-admin {
             color: rgba(255, 255, 255, 0.9);
             font-size: 1.1rem;
             line-height: 1.9;
         }
+        
         .post-meta-admin {
             display: flex;
             justify-content: space-between;
@@ -138,10 +172,12 @@
             padding-top: 15px;
             border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
+        
         .post-date-admin {
             color: rgba(255, 255, 255, 0.3);
             font-size: 0.85rem;
         }
+        
         .btn-delete {
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.2);
@@ -149,11 +185,14 @@
             padding: 5px 15px;
             border-radius: 20px;
             transition: all 0.3s;
+            border: none;
         }
+        
         .btn-delete:hover {
             background: rgba(239, 68, 68, 0.25);
             color: white;
         }
+        
         /* Empty */
         .empty-admin {
             text-align: center;
@@ -162,22 +201,37 @@
             border-radius: 20px;
             border: 1px dashed rgba(255, 255, 255, 0.1);
         }
+        
         .empty-admin i {
             font-size: 4rem;
-            color: rgba(255,255,255,0.05);
+            color: rgba(255, 255, 255, 0.05);
         }
+        
         .empty-admin h5 {
-            color: rgba(255,255,255,0.4);
+            color: rgba(255, 255, 255, 0.4);
         }
+        
         .empty-admin p {
-            color: rgba(255,255,255,0.2);
+            color: rgba(255, 255, 255, 0.2);
         }
+        
+        /* Footer */
+        .footer-admin {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+        }
+        
         @media (max-width: 576px) {
             .header-admin {
                 padding: 20px;
             }
             .logo-admin {
                 font-size: 1.4rem;
+            }
+            .post-admin {
+                padding: 20px;
             }
         }
     </style>
@@ -196,10 +250,10 @@
                 </span>
             </div>
             <div>
-                <a href="/" class="btn-logout me-2">
+                <a href="/" class="btn-admin-action">
                     <i class="bi bi-eye"></i> عرض المدونة
                 </a>
-                <a href="/logout" class="btn-logout">
+                <a href="/logout" class="btn-admin-action btn-admin-action-danger ms-2">
                     <i class="bi bi-box-arrow-right"></i> خروج
                 </a>
             </div>
@@ -250,6 +304,10 @@
             </div>
         {% endif %}
 
+        <!-- Footer -->
+        <div class="footer-admin">
+            <i class="bi bi-heart-fill" style="color: rgba(255,255,255,0.1);"></i>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
