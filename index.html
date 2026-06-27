@@ -34,10 +34,11 @@
         
         /* Header */
         .header-public {
-            padding-bottom: 30px;
+            padding-bottom: 25px;
             border-bottom: 1px solid #e9ecef;
             margin-bottom: 30px;
             text-align: center;
+            position: relative;
         }
         
         .logo-public {
@@ -55,6 +56,86 @@
             font-size: 1rem;
             margin-top: 5px;
         }
+        
+        /* ========== القائمة المنسدلة ========== */
+        .nav-menu {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .dropdown-custom .btn-dropdown {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 30px;
+            padding: 8px 25px;
+            color: #495057;
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .dropdown-custom .btn-dropdown:hover {
+            border-color: #6c63ff;
+            color: #6c63ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 99, 255, 0.15);
+        }
+        
+        .dropdown-custom .btn-dropdown i {
+            font-size: 1.1rem;
+        }
+        
+        .dropdown-menu-custom {
+            background: white;
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.12);
+            padding: 10px;
+            min-width: 220px;
+            margin-top: 8px;
+        }
+        
+        .dropdown-menu-custom .dropdown-item {
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-weight: 500;
+            color: #495057;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .dropdown-menu-custom .dropdown-item i {
+            font-size: 1.2rem;
+            width: 28px;
+            text-align: center;
+        }
+        
+        .dropdown-menu-custom .dropdown-item:hover {
+            background: #f0f0ff;
+            color: #6c63ff;
+            transform: translateX(-5px);
+        }
+        
+        .dropdown-menu-custom .dropdown-item .item-icon {
+            display: inline-block;
+        }
+        
+        /* ألوان خاصة لكل أيقونة */
+        .dropdown-item .icon-cities { color: #4ecdc4; }
+        .dropdown-item .icon-experience { color: #ff6b6b; }
+        .dropdown-item .icon-moments { color: #feca57; }
+        .dropdown-item .icon-memories { color: #a29bfe; }
+        .dropdown-item .icon-dates { color: #fd79a8; }
+        
+        /* ========== نهاية القائمة ========== */
         
         /* Post Cards */
         .post-public {
@@ -161,6 +242,14 @@
             .footer-public .footer-content {
                 font-size: 0.8rem;
             }
+            .nav-menu {
+                flex-direction: column;
+                align-items: center;
+            }
+            .dropdown-custom .btn-dropdown {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -175,6 +264,50 @@
                     <i class="bi bi-pencil"></i> مدون<span>تي</span>
                 </h1>
                 <p class="logo-sub">📖 أفكار، إلهام، وحياة</p>
+                
+                <!-- ========== القائمة المنسدلة ========== -->
+                <div class="nav-menu">
+                    <div class="dropdown-custom">
+                        <button class="btn-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-grid-3x3-gap-fill"></i>
+                            استكشف
+                            <i class="bi bi-chevron-down" style="font-size: 0.8rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-custom">
+                            <li>
+                                <a class="dropdown-item" href="/cities">
+                                    <i class="bi bi-geo-alt-fill icon-cities"></i>
+                                    مدن زرتها
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/experience">
+                                    <i class="bi bi-star-fill icon-experience"></i>
+                                    تجربة خاصة
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/moments">
+                                    <i class="bi bi-camera-fill icon-moments"></i>
+                                    لحظات خاصة
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/memories">
+                                    <i class="bi bi-bookmark-fill icon-memories"></i>
+                                    ذكريات
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/dates">
+                                    <i class="bi bi-calendar-event-fill icon-dates"></i>
+                                    تواريخ
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <!-- ========== نهاية القائمة ========== -->
             </div>
 
             <!-- Posts -->
