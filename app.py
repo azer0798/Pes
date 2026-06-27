@@ -171,17 +171,15 @@ def index():
 # ======================
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    # التحقق من الجلسة
     if session.get('admin'):
         posts = Post.query.order_by(Post.date.desc()).all()
         with open('admin.html', encoding='utf-8') as f:
             template = f.read()
         return render_template_string(template, posts=posts)
     
-    # عرض صفحة تسجيل الدخول
     if request.method == 'POST':
         password = request.form.get('password', '')
-        if password == '1234':  # غير كلمة السر هنا
+        if password == '1234':
             session['admin'] = True
             session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             return redirect(url_for('admin'))
@@ -229,6 +227,240 @@ def logout():
     session.pop('admin', None)
     session.pop('login_time', None)
     return redirect(url_for('index'))
+
+# ======================
+# الصفحات الخاصة (للقائمة المنسدلة)
+# ======================
+
+@app.route('/cities')
+def cities():
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <title>مدن زرتها - مدونتي</title>
+            <style>
+                * { font-family: 'Cairo', sans-serif; }
+                body { background: #f8f9fa; padding: 40px 20px; }
+                .container { max-width: 750px; margin: 0 auto; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 i { color: #4ecdc4; }
+                .page-header p { color: #868e96; }
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
+                .content-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; }
+                .content-card h3 { color: #2d3436; }
+                .content-card p { color: #636e72; line-height: 1.8; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="bi bi-geo-alt-fill"></i> مدن زرتها</h1>
+                    <p>🗺️ استكشف المدن التي زرتها وذكرياتك فيها</p>
+                    <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
+                </div>
+                <div class="content-card">
+                    <h3>🌍 قائمة المدن</h3>
+                    <p>هنا ستظهر قائمة المدن التي زرتها مع تفاصيل كل رحلة...</p>
+                    <p style="color: #b2bec3; font-size: 0.9rem;">✍️ قم بإضافة محتوى مدنك هنا</p>
+                </div>
+                <div class="footer">© 2026 مدونتي</div>
+            </div>
+        </body>
+        </html>
+    ''')
+
+@app.route('/experience')
+def experience():
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <title>تجربة خاصة - مدونتي</title>
+            <style>
+                * { font-family: 'Cairo', sans-serif; }
+                body { background: #f8f9fa; padding: 40px 20px; }
+                .container { max-width: 750px; margin: 0 auto; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 i { color: #ff6b6b; }
+                .page-header p { color: #868e96; }
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
+                .content-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; }
+                .content-card h3 { color: #2d3436; }
+                .content-card p { color: #636e72; line-height: 1.8; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="bi bi-star-fill"></i> تجربة خاصة</h1>
+                    <p>✨ لحظات وتجارب غيرت حياتك</p>
+                    <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
+                </div>
+                <div class="content-card">
+                    <h3>🌟 تجاربي المميزة</h3>
+                    <p>هنا ستشارك تجاربك الفريدة والخاصة...</p>
+                    <p style="color: #b2bec3; font-size: 0.9rem;">✍️ قم بإضافة محتوى تجاربك هنا</p>
+                </div>
+                <div class="footer">© 2026 مدونتي</div>
+            </div>
+        </body>
+        </html>
+    ''')
+
+@app.route('/moments')
+def moments():
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <title>لحظات خاصة - مدونتي</title>
+            <style>
+                * { font-family: 'Cairo', sans-serif; }
+                body { background: #f8f9fa; padding: 40px 20px; }
+                .container { max-width: 750px; margin: 0 auto; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 i { color: #feca57; }
+                .page-header p { color: #868e96; }
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
+                .content-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; }
+                .content-card h3 { color: #2d3436; }
+                .content-card p { color: #636e72; line-height: 1.8; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="bi bi-camera-fill"></i> لحظات خاصة</h1>
+                    <p>📸 أجمل اللحظات التي لا تنسى</p>
+                    <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
+                </div>
+                <div class="content-card">
+                    <h3>📷 لحظاتي المميزة</h3>
+                    <p>هنا ستشارك أجمل اللحظات في حياتك...</p>
+                    <p style="color: #b2bec3; font-size: 0.9rem;">✍️ قم بإضافة محتوى لحظاتك هنا</p>
+                </div>
+                <div class="footer">© 2026 مدونتي</div>
+            </div>
+        </body>
+        </html>
+    ''')
+
+@app.route('/memories')
+def memories():
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <title>ذكريات - مدونتي</title>
+            <style>
+                * { font-family: 'Cairo', sans-serif; }
+                body { background: #f8f9fa; padding: 40px 20px; }
+                .container { max-width: 750px; margin: 0 auto; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 i { color: #a29bfe; }
+                .page-header p { color: #868e96; }
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
+                .content-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; }
+                .content-card h3 { color: #2d3436; }
+                .content-card p { color: #636e72; line-height: 1.8; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="bi bi-bookmark-fill"></i> ذكريات</h1>
+                    <p>📖 ذكريات تبقى في القلب</p>
+                    <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
+                </div>
+                <div class="content-card">
+                    <h3>📚 ذكرياتي الجميلة</h3>
+                    <p>هنا ستشارك ذكرياتك التي تريد الاحتفاظ بها...</p>
+                    <p style="color: #b2bec3; font-size: 0.9rem;">✍️ قم بإضافة محتوى ذكرياتك هنا</p>
+                </div>
+                <div class="footer">© 2026 مدونتي</div>
+            </div>
+        </body>
+        </html>
+    ''')
+
+@app.route('/dates')
+def dates():
+    return render_template_string('''
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <title>تواريخ - مدونتي</title>
+            <style>
+                * { font-family: 'Cairo', sans-serif; }
+                body { background: #f8f9fa; padding: 40px 20px; }
+                .container { max-width: 750px; margin: 0 auto; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 i { color: #fd79a8; }
+                .page-header p { color: #868e96; }
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
+                .content-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; }
+                .content-card h3 { color: #2d3436; }
+                .content-card p { color: #636e72; line-height: 1.8; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="page-header">
+                    <h1><i class="bi bi-calendar-event-fill"></i> تواريخ</h1>
+                    <p>📅 تواريخ مهمة في حياتك</p>
+                    <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
+                </div>
+                <div class="content-card">
+                    <h3>🗓️ تواريخي المهمة</h3>
+                    <p>هنا ستشارك التواريخ التي تعني لك الكثير...</p>
+                    <p style="color: #b2bec3; font-size: 0.9rem;">✍️ قم بإضافة محتوى تواريخك هنا</p>
+                </div>
+                <div class="footer">© 2026 مدونتي</div>
+            </div>
+        </body>
+        </html>
+    ''')
 
 # ======================
 # تشغيل التطبيق
