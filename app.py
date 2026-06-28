@@ -13,7 +13,7 @@ app = Flask(__name__)
 # إعدادات التطبيق من متغيرات البيئة (Render)
 # ======================
 app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key-change-this')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')  # ✅ من env
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')
 DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
 # ======================
@@ -24,10 +24,12 @@ if not MONGO_URI:
     raise ValueError("❌ MONGO_URI غير موجود في متغيرات البيئة")
 
 client = MongoClient(MONGO_URI)
-db = client.get_database()
+
+# ✅ تحديد اسم قاعدة البيانات (blog)
+db = client.get_database('blog')  # يمكنك تغيير 'blog' إلى أي اسم تريده
 
 # ======================
-# إعدادات Cloudinary (للصور)
+# إعدادات Cloudinary
 # ======================
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_NAME', 'dyaiiu0if'),
@@ -37,11 +39,10 @@ cloudinary.config(
 )
 
 # ======================
-# دوال مساعدة للصور (Cloudinary)
+# دوال مساعدة للصور
 # ======================
 
 def upload_image_to_cloudinary(file):
-    """رفع الصورة إلى Cloudinary"""
     try:
         upload_result = cloudinary.uploader.upload(
             file,
@@ -62,7 +63,6 @@ def upload_image_to_cloudinary(file):
         return {'success': False, 'error': str(e)}
 
 def delete_image_from_cloudinary(public_id):
-    """حذف الصورة من Cloudinary"""
     try:
         if public_id:
             cloudinary.uploader.destroy(public_id)
@@ -382,9 +382,6 @@ def like_post(post_id):
     updated_post = db.posts.find_one({'_id': ObjectId(post_id)})
     return jsonify({'likes': updated_post.get('likes', 0)})
 
-# ======================
-# لوحة التحكم (مع ADMIN_PASSWORD من env)
-# ======================
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if session.get('admin'):
@@ -417,7 +414,6 @@ def admin():
     
     if request.method == 'POST':
         password = request.form.get('password', '')
-        # ✅ مقارنة كلمة السر مع المتغير من env
         if password == ADMIN_PASSWORD:
             session['admin'] = True
             session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -485,7 +481,7 @@ def logout():
     return redirect(url_for('index'))
 
 # ======================
-# الصفحات الخاصة (تصفية حسب النوع)
+# الصفحات الخاصة
 # ======================
 
 @app.route('/cities')
