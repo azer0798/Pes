@@ -422,7 +422,7 @@
                 <div class="form-group">
                     <label for="image">🖼️ رفع صورة (اختياري)</label>
                     <input type="file" name="image" id="image" accept="image/*" class="form-control">
-                    <small style="color: rgba(255,255,255,0.3);">الصيغ المدعومة: PNG, JPG, JPEG, GIF, WEBP, SVG | الحد الأقصى: 16MB</small>
+                    <small style="color: rgba(255,255,255,0.3);">الصيغ المدعومة: PNG, JPG, JPEG, GIF, WEBP</small>
                 </div>
                 
                 <button class="btn-publish">
@@ -445,8 +445,10 @@
                     <div class="post-content-admin">
                         {{ post.content }}
                     </div>
-                    {% if post.image %}
-                        <img src="/static/{{ post.image }}" alt="صورة التدوينة">
+                    {% if post.image_url %}
+                        <img src="{{ post.image_url }}" alt="صورة التدوينة">
+                    {% else %}
+                        <p style="color: rgba(255,255,255,0.2); font-size: 0.8rem;">⚠️ لا توجد صورة</p>
                     {% endif %}
                     <div class="post-meta-admin">
                         <div class="post-stats-admin">
@@ -458,7 +460,7 @@
                             <span class="post-date-admin">
                                 <i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}
                             </span>
-                            <form action="/delete/{{ post.id }}" method="POST" class="m-0 d-inline">
+                            <form action="/delete/{{ post._id }}" method="POST" class="m-0 d-inline">
                                 <button class="btn-delete" 
                                         onclick="return confirm('هل أنت متأكد من حذف هذه التدوينة؟')">
                                     <i class="bi bi-trash"></i> حذف
