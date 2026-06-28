@@ -6,8 +6,6 @@ import cloudinary
 import cloudinary.uploader
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from bson import json_util
-import json
 
 app = Flask(__name__)
 
@@ -15,7 +13,7 @@ app = Flask(__name__)
 # إعدادات التطبيق من متغيرات البيئة (Render)
 # ======================
 app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key-change-this')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')  # ✅ من env
 DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
 # ======================
@@ -25,9 +23,8 @@ MONGO_URI = os.environ.get('MONGO_URI')
 if not MONGO_URI:
     raise ValueError("❌ MONGO_URI غير موجود في متغيرات البيئة")
 
-# الاتصال بـ MongoDB
 client = MongoClient(MONGO_URI)
-db = client.get_database()  # يستخدم اسم قاعدة البيانات من URI
+db = client.get_database()
 
 # ======================
 # إعدادات Cloudinary (للصور)
@@ -143,7 +140,6 @@ def get_online_visitors():
     return db.visitors.count_documents({'last_visit': {'$gte': threshold}})
 
 def serialize_post(post):
-    """تحويل كائن MongoDB إلى قاموس مع تحويل ObjectId إلى string"""
     post['_id'] = str(post['_id'])
     return post
 
@@ -204,11 +200,9 @@ def index():
     
     track_visitor()
     
-    # جلب التدوينات من MongoDB
     posts_cursor = db.posts.find().sort('date', -1).skip((page - 1) * per_page).limit(per_page)
     posts = [serialize_post(p) for p in posts_cursor]
     
-    # حساب العدد الإجمالي للصفحات
     total_posts = db.posts.count_documents({})
     total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
     current_page = page
@@ -229,12 +223,10 @@ def view_post(post_id):
     if not post:
         return "التدوينة غير موجودة", 404
     
-    # زيادة عدد المشاهدات
     db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'views': 1}})
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     post = serialize_post(post)
     
-    # جلب التعليقات
     comments = list(db.comments.find({'post_id': post_id}).sort('date', -1))
     for c in comments:
         c['_id'] = str(c['_id'])
@@ -352,7 +344,6 @@ def add_comment(post_id):
     if not content:
         return "التعليق مطلوب", 400
     
-    # التحقق من وجود التدوينة
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if not post:
         return "التدوينة غير موجودة", 404
@@ -371,20 +362,16 @@ def add_comment(post_id):
 def like_post(post_id):
     visitor_id = get_visitor_session()
     
-    # التحقق من وجود التدوينة
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if not post:
         return jsonify({'error': 'Post not found'}), 404
     
-    # التحقق من وجود إعجاب سابق
     existing_like = db.likes.find_one({'post_id': post_id, 'session_id': visitor_id})
     
     if existing_like:
-        # إزالة الإعجاب
         db.likes.delete_one({'_id': existing_like['_id']})
         db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': -1}})
     else:
-        # إضافة إعجاب
         like = {
             'post_id': post_id,
             'session_id': visitor_id
@@ -395,6 +382,9 @@ def like_post(post_id):
     updated_post = db.posts.find_one({'_id': ObjectId(post_id)})
     return jsonify({'likes': updated_post.get('likes', 0)})
 
+# ======================
+# لوحة التحكم (مع ADMIN_PASSWORD من env)
+# ======================
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if session.get('admin'):
@@ -407,7 +397,6 @@ def admin():
         total_visitors = get_total_visitors()
         online_visitors = get_online_visitors()
         
-        # حساب الإعجابات الكلية
         total_likes = 0
         for p in db.posts.find():
             total_likes += p.get('likes', 0)
@@ -428,6 +417,7 @@ def admin():
     
     if request.method == 'POST':
         password = request.form.get('password', '')
+        # ✅ مقارنة كلمة السر مع المتغير من env
         if password == ADMIN_PASSWORD:
             session['admin'] = True
             session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -479,17 +469,11 @@ def delete(post_id):
     
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if post:
-        # حذف الصورة من Cloudinary
         if post.get('image_public_id'):
             delete_image_from_cloudinary(post['image_public_id'])
         
-        # حذف التدوينة
         db.posts.delete_one({'_id': ObjectId(post_id)})
-        
-        # حذف التعليقات المرتبطة
         db.comments.delete_many({'post_id': post_id})
-        
-        # حذف الإعجابات المرتبطة
         db.likes.delete_many({'post_id': post_id})
     
     return redirect(url_for('admin'))
