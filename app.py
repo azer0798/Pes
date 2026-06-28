@@ -149,6 +149,15 @@ def serialize_post(post):
     post['_id'] = str(post['_id'])
     return post
 
+def get_post_with_comments(post):
+    """جلب التدوينة مع تعليقاتها"""
+    post = serialize_post(post)
+    comments = list(db.comments.find({'post_id': post['_id']}).sort('date', -1))
+    for c in comments:
+        c['_id'] = str(c['_id'])
+    post['comments'] = comments
+    return post
+
 def get_comments_tree(post_id, parent_id=None):
     """جلب التعليقات بشكل متداخل (مثل فيسبوك)"""
     query = {'post_id': post_id}
@@ -226,7 +235,9 @@ def index():
     track_visitor()
     
     posts_cursor = db.posts.find().sort('date', -1).skip((page - 1) * per_page).limit(per_page)
-    posts = [serialize_post(p) for p in posts_cursor]
+    posts = []
+    for p in posts_cursor:
+        posts.append(get_post_with_comments(p))
     
     total_posts = db.posts.count_documents({})
     total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
@@ -288,7 +299,6 @@ def view_post(post_id):
                 .reaction-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e4e6eb; margin-bottom: 10px; }
                 .reaction-bar .likes-count { font-weight: 600; color: #65676b; font-size: 0.9rem; }
                 
-                /* ===== نظام التعليقات ===== */
                 .comments-section { margin-top: 25px; }
                 .comments-section h5 { color: #1a1a1a; font-weight: 700; margin-bottom: 15px; }
                 
@@ -348,13 +358,11 @@ def view_post(post_id):
                         {{ post.content }}
                     </div>
                     
-                    <!-- شريط التفاعل -->
                     <div class="reaction-bar">
                         <span class="likes-count" id="like-count-display"><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
                         <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-chat"></i> {{ comments|length }}</span>
                     </div>
                     
-                    <!-- أزرار التفاعل -->
                     <div class="post-actions">
                         <button class="{% if user_liked %}liked{% endif %}" onclick="toggleLike('{{ post._id }}')" id="like-btn">
                             <i class="bi {% if user_liked %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
@@ -381,17 +389,14 @@ def view_post(post_id):
                     <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
                 </div>
                 
-                <!-- ===== قسم التعليقات ===== -->
                 <div class="comments-section">
                     <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ comments|length }})</h5>
                     
-                    <!-- إضافة تعليق جديد -->
                     <div class="comment-input">
                         <textarea id="comment-input" placeholder="اكتب تعليقاً..." rows="1"></textarea>
                         <button onclick="addComment('{{ post._id }}')">نشر</button>
                     </div>
                     
-                    <!-- عرض التعليقات المتداخلة -->
                     <div id="comments-container">
                         {% for comment in comments %}
                             {{ render_comment(comment, post._id)|safe }}
@@ -401,7 +406,6 @@ def view_post(post_id):
             </div>
             
             <script>
-                // ===== الإعجاب =====
                 function toggleLike(postId) {
                     fetch('/like/' + postId, { method: 'POST' })
                         .then(response => response.json())
@@ -424,7 +428,6 @@ def view_post(post_id):
                         });
                 }
                 
-                // ===== التعليقات =====
                 function addComment(postId, parentId = null) {
                     const input = parentId ? 
                         document.getElementById('reply-input-' + parentId) : 
@@ -442,7 +445,6 @@ def view_post(post_id):
                     .then(data => {
                         if (data.success) {
                             input.value = '';
-                            // إعادة تحميل التعليقات
                             loadComments(postId);
                         }
                     });
@@ -480,7 +482,6 @@ def view_post(post_id):
                         });
                 }
                 
-                // ===== المشاركة =====
                 function toggleShareMenu() {
                     document.getElementById('share-menu').classList.toggle('show');
                 }
@@ -513,14 +514,12 @@ def view_post(post_id):
                     document.getElementById('share-menu').classList.remove('show');
                 }
                 
-                // إغلاق القائمة عند النقر خارجها
                 document.addEventListener('click', function(e) {
                     if (!e.target.closest('.share-dropdown')) {
                         document.getElementById('share-menu').classList.remove('show');
                     }
                 });
                 
-                // Enter لإرسال التعليق
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         const target = e.target;
@@ -559,7 +558,6 @@ def render_comment(comment, post_id, depth=0):
                 <button onclick="toggleReply('{comment['_id']}')">رد</button>
             </div>
             
-            <!-- نموذج الرد -->
             <div class="comment-reply-input" id="reply-form-{comment['_id']}" style="display: none;">
                 <textarea id="reply-input-{comment['_id']}" placeholder="اكتب رداً..." rows="1"></textarea>
                 <button onclick="addComment('{post_id}', '{comment['_id']}')">نشر</button>
@@ -568,7 +566,6 @@ def render_comment(comment, post_id, depth=0):
     </div>
     '''
     
-    # عرض الردود إذا وجدت
     if comment.get('replies') and depth < max_depth:
         html += '<div class="comment-replies">'
         for reply in comment['replies']:
@@ -677,7 +674,7 @@ def like_post(post_id):
     })
 
 # ======================
-# باقي المسارات (admin, add, delete, logout, categories...)
+# لوحة التحكم
 # ======================
 
 @app.route('/admin', methods=['GET', 'POST'])
@@ -721,6 +718,10 @@ def admin():
     
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
+# ======================
+# إضافة تدوينة
+# ======================
+
 @app.route('/add', methods=['POST'])
 def add():
     if not session.get('admin'):
@@ -756,6 +757,10 @@ def add():
     
     return redirect(url_for('admin'))
 
+# ======================
+# حذف تدوينة
+# ======================
+
 @app.route('/delete/<post_id>', methods=['POST'])
 def delete(post_id):
     if not session.get('admin'):
@@ -771,11 +776,19 @@ def delete(post_id):
     
     return redirect(url_for('admin'))
 
+# ======================
+# تسجيل الخروج
+# ======================
+
 @app.route('/logout')
 def logout():
     session.pop('admin', None)
     session.pop('login_time', None)
     return redirect(url_for('index'))
+
+# ======================
+# الصفحات الخاصة (تصفية حسب النوع)
+# ======================
 
 @app.route('/cities')
 def cities():
@@ -802,7 +815,9 @@ def render_category_page(category, title, subtitle, icon, color):
     per_page = 5
     
     posts_cursor = db.posts.find({'category': category}).sort('date', -1).skip((page - 1) * per_page).limit(per_page)
-    posts = [serialize_post(p) for p in posts_cursor]
+    posts = []
+    for p in posts_cursor:
+        posts.append(get_post_with_comments(p))
     
     total_posts = db.posts.count_documents({'category': category})
     total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
@@ -820,32 +835,41 @@ def render_category_page(category, title, subtitle, icon, color):
             <title>{{ title }} - مدونتي</title>
             <style>
                 * { font-family: 'Cairo', sans-serif; }
-                body { background: #f8f9fa; padding: 40px 20px; }
+                body { background: #f0f2f5; padding: 40px 20px; }
                 .container { max-width: 750px; margin: 0 auto; }
-                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
                 .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
                 .page-header h1 i { color: {{ color }}; }
                 .page-header p { color: #868e96; }
                 .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
                 .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
-                .post-card { background: white; border-radius: 16px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #e9ecef; border-right: 4px solid {{ color }}; transition: all 0.3s; }
+                .post-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-right: 4px solid {{ color }}; transition: all 0.3s; }
                 .post-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.06); transform: translateY(-2px); }
                 .post-card img { max-width: 100%; border-radius: 12px; margin-top: 15px; max-height: 300px; object-fit: cover; }
-                .post-content { font-size: 1.1rem; line-height: 1.9; color: #2d3748; }
-                .post-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f1f3f5; gap: 10px; }
-                .post-stats { display: flex; gap: 15px; color: #868e96; font-size: 0.85rem; }
+                .post-content { font-size: 1.05rem; line-height: 1.8; color: #1a1a1a; }
+                .post-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 15px; padding-top: 12px; border-top: 1px solid #e4e6eb; gap: 10px; }
+                .post-stats { display: flex; gap: 15px; color: #65676b; font-size: 0.85rem; }
                 .post-date { color: #868e96; font-size: 0.85rem; }
                 .post-category-badge { display: inline-block; padding: 2px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; background: {{ color }}20; color: {{ color }}; border: 1px solid {{ color }}40; }
+                .comments-preview { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4e6eb; }
+                .comment-preview { display: flex; gap: 10px; padding: 8px 0; align-items: flex-start; }
+                .comment-preview-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; }
+                .comment-preview-body { flex: 1; }
+                .comment-preview-name { font-weight: 600; color: #1a1a1a; font-size: 0.85rem; }
+                .comment-preview-text { color: #1a1a1a; font-size: 0.9rem; line-height: 1.5; }
+                .view-all-comments { color: #1877f2; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-block; margin-top: 5px; cursor: pointer; }
+                .view-all-comments:hover { text-decoration: underline; }
+                .no-comments { color: #65676b; font-size: 0.85rem; padding: 5px 0; }
                 .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 16px; border: 2px dashed #dee2e6; }
                 .empty-state i { font-size: 3.5rem; color: #dee2e6; }
                 .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 30px; }
-                .pagination a { padding: 8px 16px; border: 1px solid #e9ecef; border-radius: 8px; text-decoration: none; color: #6c63ff; transition: all 0.3s; }
+                .pagination a { padding: 8px 16px; border: 1px solid #e9ecef; border-radius: 8px; text-decoration: none; color: #6c63ff; transition: all 0.3s; background: white; }
                 .pagination a:hover { background: #6c63ff; color: white; }
                 .pagination .active { background: #6c63ff; color: white; }
                 .pagination .disabled { color: #ccc; pointer-events: none; }
-                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
-                .read-more { color: #6c63ff; text-decoration: none; font-weight: 600; }
+                .read-more { color: #1877f2; text-decoration: none; font-weight: 600; }
                 .read-more:hover { text-decoration: underline; }
+                .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
                 @media (max-width: 576px) { .post-card { padding: 20px; } .post-meta { flex-direction: column; align-items: flex-start; } }
             </style>
         </head>
@@ -867,13 +891,37 @@ def render_category_page(category, title, subtitle, icon, color):
                             {% endif %}
                             <div class="post-meta">
                                 <div class="post-stats">
-                                    <span><i class="bi bi-eye"></i> {{ post.views }}</span>
-                                    <span><i class="bi bi-heart"></i> {{ post.likes }}</span>
+                                    <span><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
                                     <span><i class="bi bi-chat"></i> {{ post.comments|length }}</span>
+                                    <span><i class="bi bi-eye"></i> {{ post.views }}</span>
                                 </div>
                                 <span class="post-date"><i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}</span>
                             </div>
-                            <a href="/post/{{ post._id }}" class="read-more">اقرأ المزيد →</a>
+                            
+                            <div class="comments-preview">
+                                {% if post.comments %}
+                                    {% set comment_count = post.comments|length %}
+                                    {% set preview_comments = post.comments[:3] %}
+                                    {% for comment in preview_comments %}
+                                        <div class="comment-preview">
+                                            <div class="comment-preview-avatar">{{ comment.name[0] }}</div>
+                                            <div class="comment-preview-body">
+                                                <div class="comment-preview-name">{{ comment.name }}</div>
+                                                <div class="comment-preview-text">
+                                                    {{ comment.content[:60] }}{% if comment.content|length > 60 %}...{% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                    {% if comment_count > 3 %}
+                                        <a href="/post/{{ post._id }}" class="view-all-comments">
+                                            عرض جميع التعليقات ({{ comment_count }})
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="no-comments"><i class="bi bi-chat"></i> لا توجد تعليقات</div>
+                                {% endif %}
+                            </div>
                         </div>
                     {% endfor %}
                     
@@ -918,6 +966,7 @@ def render_category_page(category, title, subtitle, icon, color):
 # ======================
 # تشغيل التطبيق
 # ======================
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=DEBUG)
