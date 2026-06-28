@@ -6,14 +6,24 @@ import cloudinary
 import cloudinary.uploader
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
+from markupsafe import escape
 
 app = Flask(__name__)
 
 # ======================
-# إعدادات التطبيق من متغيرات البيئة (Render)
+# إعدادات الأمان
 # ======================
-app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key-change-this')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')
+app.secret_key = os.environ['SECRET_KEY']
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    MAX_CONTENT_LENGTH=5 * 1024 * 1024  # 5 ميجابايت
+)
+
+ADMIN_PASSWORD = os.environ['ADMIN_PASS']
 DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
 # ======================
@@ -27,7 +37,16 @@ client = MongoClient(MONGO_URI)
 db = client.get_database('blog')
 
 # ======================
-# إعدادات Cloudinary (للصور)
+# إنشاء الفهارس (Indexes) لتحسين الأداء
+# ======================
+db.likes.create_index([('post_id', 1), ('ip_address', 1)])
+db.comment_likes.create_index([('comment_id', 1), ('ip_address', 1)])
+db.post_views.create_index([('post_id', 1), ('ip_address', 1)])
+db.comments.create_index([('post_id', 1)])
+db.posts.create_index([('date', -1)])
+
+# ======================
+# إعدادات Cloudinary
 # ======================
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_NAME', 'dyaiiu0if'),
@@ -37,8 +56,15 @@ cloudinary.config(
 )
 
 # ======================
-# دوال مساعدة للصور
+# دوال مساعدة
 # ======================
+
+def safe_object_id(value):
+    """تحويل آمن لـ ObjectId"""
+    try:
+        return ObjectId(value)
+    except InvalidId:
+        return None
 
 def upload_image_to_cloudinary(file):
     try:
@@ -50,8 +76,8 @@ def upload_image_to_cloudinary(file):
             folder='blog_images',
             allowed_formats=['jpg', 'jpeg', 'png', 'gif', 'webp'],
             transformation=[
-                {'width': 1200, 'height': 800, 'crop': 'limit'},
-                {'quality': 'auto:best'},
+                {'width': 1000, 'crop': 'limit'},
+                {'quality': 'auto'},
                 {'fetch_format': 'auto'}
             ],
             use_filename=True,
@@ -76,10 +102,6 @@ def delete_image_from_cloudinary(public_id):
     except Exception as e:
         print(f"خطأ في حذف الصورة: {e}")
         return False
-
-# ======================
-# دوال مساعدة أخرى
-# ======================
 
 def get_category_label(category):
     categories = {
@@ -150,13 +172,13 @@ def serialize_post(post):
     return post
 
 def get_post_with_comments(post):
-    """جلب التدوينة مع تعليقاتها (آخر تعليق واحد فقط)"""
+    """جلب التدوينة مع تعليقاتها"""
     post = serialize_post(post)
     comments = list(db.comments.find({'post_id': post['_id']}).sort('date', -1).limit(1))
     for c in comments:
         c['_id'] = str(c['_id'])
     post['comments'] = comments
-    post['comments_count'] = db.comments.count_documents({'post_id': post['_id']})
+    post['comments_count'] = post.get('comments_count', 0)
     return post
 
 def get_comments_tree(post_id, parent_id=None):
@@ -225,7 +247,7 @@ ADMIN_LOGIN_TEMPLATE = '''
 '''
 
 # ======================
-# المسارات (Routes)
+# المسارات
 # ======================
 
 @app.route('/')
@@ -237,7 +259,6 @@ def index():
     posts = []
     for p in posts_cursor:
         post = get_post_with_comments(p)
-        # التحقق من إعجاب المستخدم
         post['user_liked'] = db.likes.find_one({
             'post_id': post['_id'],
             'ip_address': get_client_ip()
@@ -260,18 +281,22 @@ def index():
 
 @app.route('/post/<post_id>')
 def view_post(post_id):
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    obj_id = safe_object_id(post_id)
+    if not obj_id:
+        return "معرف غير صالح", 404
+    
+    post = db.posts.find_one({'_id': obj_id})
     if not post:
         return "التدوينة غير موجودة", 404
     
-    # مشاهدة واحدة لكل IP
     client_ip = get_client_ip()
     add_post_view(post_id, client_ip)
     
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    post = db.posts.find_one({'_id': obj_id})
     post = serialize_post(post)
     
     comments = get_comments_tree(post_id)
+    total_comments = db.comments.count_documents({'post_id': post_id})
     
     user_liked = db.likes.find_one({
         'post_id': post_id,
@@ -375,7 +400,7 @@ def view_post(post_id):
                     
                     <div class="reaction-bar">
                         <span class="likes-count" id="like-count-display"><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
-                        <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-chat"></i> {{ comments|length }}</span>
+                        <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-chat"></i> {{ total_comments }}</span>
                         <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-eye"></i> {{ post.views }}</span>
                     </div>
                     
@@ -406,7 +431,7 @@ def view_post(post_id):
                 </div>
                 
                 <div class="comments-section">
-                    <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ comments|length }})</h5>
+                    <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ total_comments }})</h5>
                     
                     <div class="comment-input">
                         <input type="text" id="comment-name" placeholder="اسمك" class="form-control">
@@ -569,7 +594,7 @@ def view_post(post_id):
             </script>
         </body>
         </html>
-    ''', post=post, comments=comments, user_liked=user_liked, render_comment=render_comment)
+    ''', post=post, comments=comments, total_comments=total_comments, user_liked=user_liked, render_comment=render_comment)
 
 # ======================
 # دالة عرض التعليقات المتداخلة
@@ -623,15 +648,28 @@ def render_comment(comment, post_id, depth=0):
 
 @app.route('/comment/<post_id>', methods=['POST'])
 def add_comment_api(post_id):
+    obj_id = safe_object_id(post_id)
+    if not obj_id:
+        return jsonify({'success': False, 'error': 'معرف غير صالح'}), 400
+    
     data = request.get_json()
-    name = data.get('name', '').strip() or 'زائر'
-    content = data.get('content', '').strip()
+    name = escape(data.get('name', '').strip())
+    content = escape(data.get('content', '').strip())
     parent_id = data.get('parent_id')
     
     if not content:
         return jsonify({'success': False, 'error': 'التعليق مطلوب'}), 400
     
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    if len(content) > 1000:
+        return jsonify({'success': False, 'error': 'التعليق طويل جداً'}), 400
+    
+    if len(name) > 50:
+        name = name[:50]
+    
+    if not name:
+        name = 'زائر'
+    
+    post = db.posts.find_one({'_id': obj_id})
     if not post:
         return jsonify({'success': False, 'error': 'التدوينة غير موجودة'}), 404
     
@@ -644,6 +682,12 @@ def add_comment_api(post_id):
     }
     result = db.comments.insert_one(comment)
     
+    # تحديث عدد التعليقات في التدوينة
+    db.posts.update_one(
+        {'_id': obj_id},
+        {'$inc': {'comments_count': 1}}
+    )
+    
     return jsonify({
         'success': True,
         'comment_id': str(result.inserted_id)
@@ -651,6 +695,10 @@ def add_comment_api(post_id):
 
 @app.route('/get-comments/<post_id>')
 def get_comments_api(post_id):
+    obj_id = safe_object_id(post_id)
+    if not obj_id:
+        return jsonify({'html': ''})
+    
     comments = get_comments_tree(post_id)
     html = ''
     for comment in comments:
@@ -688,7 +736,24 @@ def delete_comment(comment_id):
     if not session.get('admin'):
         return jsonify({'success': False, 'error': 'غير مصرح لك'}), 403
     
-    result = db.comments.delete_one({'_id': ObjectId(comment_id)})
+    obj_id = safe_object_id(comment_id)
+    if not obj_id:
+        return jsonify({'success': False}), 400
+    
+    comment = db.comments.find_one({'_id': obj_id})
+    if not comment:
+        return jsonify({'success': False}), 404
+    
+    post_id = comment.get('post_id')
+    if post_id:
+        post_obj_id = safe_object_id(post_id)
+        if post_obj_id:
+            db.posts.update_one(
+                {'_id': post_obj_id},
+                {'$inc': {'comments_count': -1}}
+            )
+    
+    result = db.comments.delete_one({'_id': obj_id})
     if result.deleted_count > 0:
         db.comments.delete_many({'parent_id': comment_id})
         return jsonify({'success': True})
@@ -700,9 +765,13 @@ def delete_comment(comment_id):
 
 @app.route('/like/<post_id>', methods=['POST'])
 def like_post(post_id):
+    obj_id = safe_object_id(post_id)
+    if not obj_id:
+        return jsonify({'error': 'معرف غير صالح'}), 400
+    
     ip_address = get_client_ip()
     
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    post = db.posts.find_one({'_id': obj_id})
     if not post:
         return jsonify({'error': 'Post not found'}), 404
     
@@ -710,15 +779,15 @@ def like_post(post_id):
     
     if existing_like:
         db.likes.delete_one({'_id': existing_like['_id']})
-        db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': -1}})
+        db.posts.update_one({'_id': obj_id}, {'$inc': {'likes': -1}})
         liked = False
     else:
         like = {'post_id': post_id, 'ip_address': ip_address}
         db.likes.insert_one(like)
-        db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': 1}})
+        db.posts.update_one({'_id': obj_id}, {'$inc': {'likes': 1}})
         liked = True
     
-    updated_post = db.posts.find_one({'_id': ObjectId(post_id)})
+    updated_post = db.posts.find_one({'_id': obj_id})
     return jsonify({
         'likes': updated_post.get('likes', 0),
         'liked': liked
@@ -802,7 +871,8 @@ def add():
         'category': category,
         'date': datetime.utcnow(),
         'views': 0,
-        'likes': 0
+        'likes': 0,
+        'comments_count': 0
     }
     db.posts.insert_one(post)
     
@@ -817,13 +887,26 @@ def delete(post_id):
     if not session.get('admin'):
         return "غير مصرح لك", 403
     
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    obj_id = safe_object_id(post_id)
+    if not obj_id:
+        return "معرف غير صالح", 400
+    
+    post = db.posts.find_one({'_id': obj_id})
     if post:
         if post.get('image_public_id'):
             delete_image_from_cloudinary(post['image_public_id'])
-        db.posts.delete_one({'_id': ObjectId(post_id)})
-        db.comments.delete_many({'post_id': post_id})
+        
+        # حذف الإعجابات والمشاهدات المرتبطة
+        db.post_views.delete_many({'post_id': post_id})
         db.likes.delete_many({'post_id': post_id})
+        
+        # حذف التعليقات المرتبطة
+        comments = db.comments.find({'post_id': post_id})
+        for c in comments:
+            db.comment_likes.delete_many({'comment_id': str(c['_id'])})
+        
+        db.comments.delete_many({'post_id': post_id})
+        db.posts.delete_one({'_id': obj_id})
     
     return redirect(url_for('admin'))
 
@@ -833,8 +916,7 @@ def delete(post_id):
 
 @app.route('/logout')
 def logout():
-    session.pop('admin', None)
-    session.pop('login_time', None)
+    session.clear()
     return redirect(url_for('index'))
 
 # ======================
@@ -917,7 +999,7 @@ def render_category_page(category, title, subtitle, icon, color):
                 .post-card img { max-width: 100%; border-radius: 12px; margin-top: 15px; max-height: 300px; object-fit: cover; }
                 .post-content { font-size: 1.05rem; line-height: 1.8; color: #1a1a1a; }
                 .post-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 15px; padding-top: 12px; border-top: 1px solid #e4e6eb; gap: 10px; }
-                .post-stats { display: flex; gap: 15px; color: #65676b; font-size: 0.85rem; }
+                .post-stats { display: flex; gap: 15px; color: #65676b; font-size: 0.85rem; align-items: center; }
                 .post-stats .like-btn { background: none; border: none; color: #65676b; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; transition: all 0.2s; }
                 .post-stats .like-btn:hover { background: #f0f2f5; }
                 .post-stats .like-btn.liked { color: #1877f2; }
