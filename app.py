@@ -37,27 +37,14 @@ cloudinary.config(
 )
 
 # ======================
-# دوال مساعدة للصور (Cloudinary)
+# دوال مساعدة للصور
 # ======================
 
 def upload_image_to_cloudinary(file):
-    """رفع الصورة إلى Cloudinary مع تحسينات"""
     try:
         if not file or not file.filename:
-            print("❌ لا يوجد ملف للرفع")
             return {'success': False, 'error': 'لا يوجد ملف'}
 
-        print(f"📤 جاري رفع الصورة: {file.filename}")
-
-        # التحقق من نوع الملف
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-        file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-        
-        if file_ext not in allowed_extensions:
-            print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")
-            return {'success': False, 'error': f'نوع الملف غير مدعوم: {file_ext}'}
-
-        # رفع الصورة
         upload_result = cloudinary.uploader.upload(
             file,
             folder='blog_images',
@@ -72,9 +59,6 @@ def upload_image_to_cloudinary(file):
             resource_type='image'
         )
 
-        print(f"✅ تم رفع الصورة بنجاح: {upload_result.get('public_id')}")
-        print(f"✅ رابط الصورة: {upload_result.get('secure_url')}")
-
         return {
             'public_id': upload_result.get('public_id'),
             'url': upload_result.get('secure_url'),
@@ -85,11 +69,9 @@ def upload_image_to_cloudinary(file):
         return {'success': False, 'error': str(e)}
 
 def delete_image_from_cloudinary(public_id):
-    """حذف الصورة من Cloudinary"""
     try:
         if public_id:
-            result = cloudinary.uploader.destroy(public_id)
-            print(f"🗑️ تم حذف الصورة: {public_id}")
+            cloudinary.uploader.destroy(public_id)
             return True
     except Exception as e:
         print(f"❌ خطأ في حذف الصورة: {e}")
@@ -166,6 +148,25 @@ def get_online_visitors():
 def serialize_post(post):
     post['_id'] = str(post['_id'])
     return post
+
+def get_comments_tree(post_id, parent_id=None):
+    """جلب التعليقات بشكل متداخل (مثل فيسبوك)"""
+    query = {'post_id': post_id}
+    if parent_id:
+        query['parent_id'] = parent_id
+    else:
+        query['parent_id'] = None
+    
+    comments = list(db.comments.find(query).sort('date', 1))
+    for comment in comments:
+        comment['_id'] = str(comment['_id'])
+        comment['replies'] = get_comments_tree(post_id, str(comment['_id']))
+        comment['likes_count'] = db.comment_likes.count_documents({'comment_id': str(comment['_id'])})
+        comment['user_liked'] = db.comment_likes.find_one({
+            'comment_id': str(comment['_id']),
+            'session_id': get_visitor_session()
+        }) is not None
+    return comments
 
 # ======================
 # قالب تسجيل الدخول
@@ -251,9 +252,14 @@ def view_post(post_id):
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     post = serialize_post(post)
     
-    comments = list(db.comments.find({'post_id': post_id}).sort('date', -1))
-    for c in comments:
-        c['_id'] = str(c['_id'])
+    # جلب التعليقات المتداخلة
+    comments = get_comments_tree(post_id)
+    
+    # التحقق من إعجاب المستخدم بالتدوينة
+    user_liked = db.likes.find_one({
+        'post_id': post_id,
+        'session_id': get_visitor_session()
+    }) is not None
     
     return render_template_string('''
         <!DOCTYPE html>
@@ -263,124 +269,386 @@ def view_post(post_id):
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
             <title>التدوينة - مدونتي</title>
             <style>
                 * { font-family: 'Cairo', sans-serif; }
-                body { background: #f8f9fa; padding: 30px 20px; }
+                body { background: #f0f2f5; padding: 30px 20px; }
                 .container { max-width: 750px; margin: 0 auto; }
-                .post-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+                
+                .post-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
                 .post-card img { max-width: 100%; border-radius: 12px; margin: 15px 0; }
-                .post-meta { display: flex; gap: 20px; flex-wrap: wrap; color: #868e96; font-size: 0.9rem; margin: 15px 0; }
-                .back-btn { display: inline-block; margin-top: 20px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; }
-                .back-btn:hover { background: #5a52d5; color: white; }
-                .comments-section { margin-top: 30px; }
-                .comment-card { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 10px; }
-                .comment-name { font-weight: 600; color: #2d3436; }
-                .comment-date { color: #868e96; font-size: 0.8rem; }
-                .comment-form textarea { border-radius: 12px; border: 1px solid #e9ecef; padding: 12px; width: 100%; }
-                .comment-form button { background: #6c63ff; color: white; border: none; padding: 10px 25px; border-radius: 30px; }
-                .btn-like { background: none; border: none; color: #e74c3c; font-size: 1.2rem; transition: all 0.3s; }
-                .btn-like:hover { transform: scale(1.2); }
-                .share-btn { background: none; border: none; color: #6c63ff; font-size: 1.2rem; transition: all 0.3s; }
-                .share-btn:hover { transform: scale(1.1); }
+                
+                .post-actions { display: flex; gap: 20px; padding: 10px 0; border-top: 1px solid #e4e6eb; margin-top: 15px; }
+                .post-actions button { background: none; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 600; color: #65676b; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+                .post-actions button:hover { background: #f0f2f5; }
+                .post-actions .liked { color: #1877f2; }
+                .post-actions .liked i { color: #1877f2; }
+                
+                .reaction-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e4e6eb; margin-bottom: 10px; }
+                .reaction-bar .likes-count { font-weight: 600; color: #65676b; font-size: 0.9rem; }
+                
+                /* ===== نظام التعليقات ===== */
+                .comments-section { margin-top: 25px; }
+                .comments-section h5 { color: #1a1a1a; font-weight: 700; margin-bottom: 15px; }
+                
+                .comment-input { display: flex; gap: 10px; margin-bottom: 20px; }
+                .comment-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 12px 15px; resize: none; font-size: 0.95rem; background: #f0f2f5; transition: all 0.3s; }
+                .comment-input textarea:focus { background: white; border-color: #1877f2; outline: none; box-shadow: 0 0 0 2px rgba(24,119,242,0.2); }
+                .comment-input button { background: #1877f2; color: white; border: none; border-radius: 20px; padding: 0 20px; font-weight: 600; transition: all 0.3s; }
+                .comment-input button:hover { background: #166fe5; transform: scale(1.02); }
+                
+                .comment { display: flex; gap: 12px; margin-bottom: 15px; padding: 12px; border-radius: 12px; transition: all 0.2s; }
+                .comment:hover { background: #f8f9fa; }
+                .comment-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; flex-shrink: 0; }
+                .comment-body { flex: 1; }
+                .comment-name { font-weight: 600; color: #1a1a1a; font-size: 0.95rem; }
+                .comment-name span { font-weight: 400; color: #65676b; font-size: 0.8rem; margin-right: 8px; }
+                .comment-text { color: #1a1a1a; margin: 5px 0; }
+                .comment-actions { display: flex; gap: 15px; margin-top: 5px; }
+                .comment-actions button { background: none; border: none; color: #65676b; font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; transition: all 0.2s; }
+                .comment-actions button:hover { background: #e4e6eb; }
+                .comment-actions .liked { color: #1877f2; }
+                
+                .comment-replies { margin-right: 52px; padding-right: 15px; border-right: 2px solid #e4e6eb; }
+                .comment-reply-input { display: flex; gap: 10px; margin: 10px 0; }
+                .comment-reply-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 8px 15px; resize: none; font-size: 0.9rem; background: #f0f2f5; }
+                .comment-reply-input textarea:focus { background: white; border-color: #1877f2; outline: none; }
+                .comment-reply-input button { background: #1877f2; color: white; border: none; border-radius: 20px; padding: 0 15px; font-weight: 600; font-size: 0.85rem; }
+                
+                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 20px; background: #1877f2; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
+                .back-btn:hover { background: #166fe5; color: white; }
+                
+                .share-dropdown { position: relative; display: inline-block; }
+                .share-menu { display: none; position: absolute; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.15); border-radius: 12px; padding: 8px; min-width: 200px; z-index: 1000; top: 100%; left: 0; }
+                .share-menu.show { display: block; }
+                .share-menu a { display: flex; align-items: center; gap: 10px; padding: 8px 15px; border-radius: 8px; color: #1a1a1a; text-decoration: none; transition: all 0.2s; }
+                .share-menu a:hover { background: #f0f2f5; }
+                
+                @media (max-width: 576px) {
+                    .post-card { padding: 20px; }
+                    .comment-replies { margin-right: 20px; padding-right: 10px; }
+                    .post-actions { flex-wrap: wrap; }
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="post-card">
-                    <h3 class="mb-3">{{ post.content[:50] }}...</h3>
-                    <div class="post-meta">
-                        <span><i class="bi bi-eye"></i> {{ post.views }} مشاهدة</span>
-                        <span><i class="bi bi-heart"></i> <span id="like-count">{{ post.likes }}</span> إعجاب</span>
-                        <span><i class="bi bi-chat"></i> {{ comments|length }} تعليق</span>
+                    <h4 class="mb-2">{{ post.content[:50] }}...</h4>
+                    <div style="color: #65676b; font-size: 0.9rem; margin-bottom: 10px;">
                         <span><i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}</span>
-                    </div>
-                    
-                    <div style="margin: 15px 0;">
-                        <button class="btn-like" onclick="toggleLike('{{ post._id }}')" id="like-btn">
-                            <i class="bi bi-heart-fill"></i> أعجبني
-                        </button>
-                        <button class="share-btn" onclick="sharePost()">
-                            <i class="bi bi-share-fill"></i> مشاركة
-                        </button>
                     </div>
                     
                     {% if post.image_url %}
                         <img src="{{ post.image_url }}" alt="صورة التدوينة">
                     {% endif %}
                     
-                    <div class="post-content" style="font-size: 1.1rem; line-height: 1.9; color: #2d3748;">
+                    <div class="post-content" style="font-size: 1.05rem; line-height: 1.8; color: #1a1a1a;">
                         {{ post.content }}
+                    </div>
+                    
+                    <!-- شريط التفاعل -->
+                    <div class="reaction-bar">
+                        <span class="likes-count" id="like-count-display"><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
+                        <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-chat"></i> {{ comments|length }}</span>
+                    </div>
+                    
+                    <!-- أزرار التفاعل -->
+                    <div class="post-actions">
+                        <button class="{% if user_liked %}liked{% endif %}" onclick="toggleLike('{{ post._id }}')" id="like-btn">
+                            <i class="bi {% if user_liked %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
+                            <span id="like-text">{% if user_liked %}أعجبني{% else %}أعجبني{% endif %}</span>
+                        </button>
+                        
+                        <button onclick="document.getElementById('comment-input').focus()">
+                            <i class="bi bi-chat"></i> تعليق
+                        </button>
+                        
+                        <div class="share-dropdown">
+                            <button onclick="toggleShareMenu()">
+                                <i class="bi bi-share"></i> مشاركة
+                            </button>
+                            <div class="share-menu" id="share-menu">
+                                <a href="#" onclick="sharePost('facebook')"><i class="bi bi-facebook" style="color: #1877f2;"></i> فيسبوك</a>
+                                <a href="#" onclick="sharePost('twitter')"><i class="bi bi-twitter-x" style="color: #000;"></i> تويتر</a>
+                                <a href="#" onclick="sharePost('whatsapp')"><i class="bi bi-whatsapp" style="color: #25D366;"></i> واتساب</a>
+                                <a href="#" onclick="sharePost('copy')"><i class="bi bi-link-45deg" style="color: #65676b;"></i> نسخ الرابط</a>
+                            </div>
+                        </div>
                     </div>
                     
                     <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
                 </div>
                 
+                <!-- ===== قسم التعليقات ===== -->
                 <div class="comments-section">
                     <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ comments|length }})</h5>
                     
-                    {% for comment in comments %}
-                        <div class="comment-card">
-                            <div class="comment-name">{{ comment.name }}</div>
-                            <div>{{ comment.content }}</div>
-                            <div class="comment-date">{{ comment.date.strftime('%Y-%m-%d %H:%M') }}</div>
-                        </div>
-                    {% endfor %}
+                    <!-- إضافة تعليق جديد -->
+                    <div class="comment-input">
+                        <textarea id="comment-input" placeholder="اكتب تعليقاً..." rows="1"></textarea>
+                        <button onclick="addComment('{{ post._id }}')">نشر</button>
+                    </div>
                     
-                    <div class="comment-form mt-3">
-                        <h6>💬 أضف تعليقاً</h6>
-                        <form action="/comment/{{ post._id }}" method="POST">
-                            <input type="text" name="name" class="form-control mb-2" placeholder="اسمك (اختياري)" style="border-radius: 12px;">
-                            <textarea name="content" class="form-control mb-2" placeholder="اكتب تعليقك..." rows="3" required style="border-radius: 12px;"></textarea>
-                            <button type="submit"><i class="bi bi-send"></i> نشر التعليق</button>
-                        </form>
+                    <!-- عرض التعليقات المتداخلة -->
+                    <div id="comments-container">
+                        {% for comment in comments %}
+                            {{ render_comment(comment, post._id)|safe }}
+                        {% endfor %}
                     </div>
                 </div>
             </div>
             
             <script>
+                // ===== الإعجاب =====
                 function toggleLike(postId) {
                     fetch('/like/' + postId, { method: 'POST' })
                         .then(response => response.json())
                         .then(data => {
-                            document.getElementById('like-count').textContent = data.likes;
+                            const btn = document.getElementById('like-btn');
+                            const countDisplay = document.getElementById('like-count-display');
+                            const text = document.getElementById('like-text');
+                            
+                            if (data.liked) {
+                                btn.classList.add('liked');
+                                btn.querySelector('i').className = 'bi bi-hand-thumbs-up-fill';
+                                text.textContent = 'أعجبني';
+                            } else {
+                                btn.classList.remove('liked');
+                                btn.querySelector('i').className = 'bi bi-hand-thumbs-up';
+                                text.textContent = 'أعجبني';
+                            }
+                            
+                            countDisplay.innerHTML = '<i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> ' + data.likes;
                         });
                 }
                 
-                function sharePost() {
-                    if (navigator.share) {
-                        navigator.share({ title: '{{ post.content[:30] }}', url: window.location.href });
+                // ===== التعليقات =====
+                function addComment(postId, parentId = null) {
+                    const input = parentId ? 
+                        document.getElementById('reply-input-' + parentId) : 
+                        document.getElementById('comment-input');
+                    
+                    const content = input.value.trim();
+                    if (!content) return;
+                    
+                    fetch('/comment/' + postId, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: content, parent_id: parentId })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            input.value = '';
+                            // إعادة تحميل التعليقات
+                            loadComments(postId);
+                        }
+                    });
+                }
+                
+                function loadComments(postId) {
+                    fetch('/get-comments/' + postId)
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('comments-container').innerHTML = data.html;
+                        });
+                }
+                
+                function toggleReply(commentId) {
+                    const replyForm = document.getElementById('reply-form-' + commentId);
+                    if (replyForm.style.display === 'none') {
+                        replyForm.style.display = 'block';
                     } else {
-                        navigator.clipboard.writeText(window.location.href);
-                        alert('✅ تم نسخ الرابط!');
+                        replyForm.style.display = 'none';
                     }
                 }
+                
+                function likeComment(commentId) {
+                    fetch('/like-comment/' + commentId, { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            const btn = document.getElementById('comment-like-' + commentId);
+                            const count = document.getElementById('comment-like-count-' + commentId);
+                            if (data.liked) {
+                                btn.classList.add('liked');
+                            } else {
+                                btn.classList.remove('liked');
+                            }
+                            count.textContent = data.likes;
+                        });
+                }
+                
+                // ===== المشاركة =====
+                function toggleShareMenu() {
+                    document.getElementById('share-menu').classList.toggle('show');
+                }
+                
+                function sharePost(platform) {
+                    const url = window.location.href;
+                    const title = '{{ post.content[:50] }}';
+                    let shareUrl = '';
+                    
+                    switch(platform) {
+                        case 'facebook':
+                            shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
+                            break;
+                        case 'twitter':
+                            shareUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(title) + '&url=' + encodeURIComponent(url);
+                            break;
+                        case 'whatsapp':
+                            shareUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(title + ' ' + url);
+                            break;
+                        case 'copy':
+                            navigator.clipboard.writeText(url);
+                            alert('✅ تم نسخ الرابط!');
+                            return;
+                    }
+                    
+                    if (shareUrl) {
+                        window.open(shareUrl, '_blank');
+                    }
+                    
+                    document.getElementById('share-menu').classList.remove('show');
+                }
+                
+                // إغلاق القائمة عند النقر خارجها
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('.share-dropdown')) {
+                        document.getElementById('share-menu').classList.remove('show');
+                    }
+                });
+                
+                // Enter لإرسال التعليق
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        const target = e.target;
+                        if (target.id === 'comment-input' || target.id.startsWith('reply-input-')) {
+                            e.preventDefault();
+                            const postId = '{{ post._id }}';
+                            const parentId = target.id.startsWith('reply-input-') ? target.id.replace('reply-input-', '') : null;
+                            addComment(postId, parentId);
+                        }
+                    }
+                });
             </script>
         </body>
         </html>
-    ''', post=post, comments=comments)
+    ''', post=post, comments=comments, user_liked=user_liked, render_comment=render_comment)
+
+# ======================
+# دالة عرض التعليقات المتداخلة
+# ======================
+
+def render_comment(comment, post_id, depth=0):
+    """عرض تعليق مع ردوده (مثل فيسبوك)"""
+    indent = depth * 20
+    max_depth = 5
+    
+    html = f'''
+    <div class="comment" style="margin-right: {indent}px;" id="comment-{comment['_id']}">
+        <div class="comment-avatar">{comment['name'][0]}</div>
+        <div class="comment-body">
+            <div class="comment-name">{comment['name']} <span>{comment['date'].strftime('%Y-%m-%d %H:%M')}</span></div>
+            <div class="comment-text">{comment['content']}</div>
+            <div class="comment-actions">
+                <button onclick="likeComment('{comment['_id']}')" id="comment-like-{comment['_id']}" class="{'liked' if comment.get('user_liked') else ''}">
+                    <i class="bi bi-hand-thumbs-up"></i> <span id="comment-like-count-{comment['_id']}">{comment.get('likes_count', 0)}</span>
+                </button>
+                <button onclick="toggleReply('{comment['_id']}')">رد</button>
+            </div>
+            
+            <!-- نموذج الرد -->
+            <div class="comment-reply-input" id="reply-form-{comment['_id']}" style="display: none;">
+                <textarea id="reply-input-{comment['_id']}" placeholder="اكتب رداً..." rows="1"></textarea>
+                <button onclick="addComment('{post_id}', '{comment['_id']}')">نشر</button>
+            </div>
+        </div>
+    </div>
+    '''
+    
+    # عرض الردود إذا وجدت
+    if comment.get('replies') and depth < max_depth:
+        html += '<div class="comment-replies">'
+        for reply in comment['replies']:
+            html += render_comment(reply, post_id, depth + 1)
+        html += '</div>'
+    
+    return html
+
+# ======================
+# API التعليقات (للـ AJAX)
+# ======================
 
 @app.route('/comment/<post_id>', methods=['POST'])
-def add_comment(post_id):
-    name = request.form.get('name', '').strip() or 'زائر'
-    content = request.form.get('content', '').strip()
+def add_comment_api(post_id):
+    data = request.get_json()
+    content = data.get('content', '').strip()
+    parent_id = data.get('parent_id')
     
     if not content:
-        return "التعليق مطلوب", 400
+        return jsonify({'success': False, 'error': 'التعليق مطلوب'}), 400
     
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if not post:
-        return "التدوينة غير موجودة", 404
+        return jsonify({'success': False, 'error': 'التدوينة غير موجودة'}), 404
+    
+    name = request.headers.get('X-Forwarded-For', 'زائر').split(',')[0].strip()
+    if name == 'زائر':
+        name = 'زائر_' + str(uuid.uuid4())[:6]
     
     comment = {
         'post_id': post_id,
+        'parent_id': parent_id,
         'name': name,
         'content': content,
         'date': datetime.utcnow()
     }
-    db.comments.insert_one(comment)
+    result = db.comments.insert_one(comment)
     
-    return redirect(url_for('view_post', post_id=post_id))
+    return jsonify({
+        'success': True,
+        'comment_id': str(result.inserted_id)
+    })
+
+@app.route('/get-comments/<post_id>')
+def get_comments_api(post_id):
+    comments = get_comments_tree(post_id)
+    html = ''
+    for comment in comments:
+        html += render_comment(comment, post_id)
+    return jsonify({'html': html})
+
+@app.route('/like-comment/<comment_id>', methods=['POST'])
+def like_comment(comment_id):
+    session_id = get_visitor_session()
+    
+    existing_like = db.comment_likes.find_one({
+        'comment_id': comment_id,
+        'session_id': session_id
+    })
+    
+    if existing_like:
+        db.comment_likes.delete_one({'_id': existing_like['_id']})
+        liked = False
+    else:
+        db.comment_likes.insert_one({
+            'comment_id': comment_id,
+            'session_id': session_id
+        })
+        liked = True
+    
+    likes_count = db.comment_likes.count_documents({'comment_id': comment_id})
+    
+    return jsonify({
+        'likes': likes_count,
+        'liked': liked
+    })
+
+# ======================
+# الإعجاب بالتدوينة (API)
+# ======================
 
 @app.route('/like/<post_id>', methods=['POST'])
 def like_post(post_id):
@@ -395,16 +663,22 @@ def like_post(post_id):
     if existing_like:
         db.likes.delete_one({'_id': existing_like['_id']})
         db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': -1}})
+        liked = False
     else:
-        like = {
-            'post_id': post_id,
-            'session_id': visitor_id
-        }
+        like = {'post_id': post_id, 'session_id': visitor_id}
         db.likes.insert_one(like)
         db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': 1}})
+        liked = True
     
     updated_post = db.posts.find_one({'_id': ObjectId(post_id)})
-    return jsonify({'likes': updated_post.get('likes', 0)})
+    return jsonify({
+        'likes': updated_post.get('likes', 0),
+        'liked': liked
+    })
+
+# ======================
+# باقي المسارات (admin, add, delete, logout, categories...)
+# ======================
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -447,9 +721,6 @@ def admin():
     
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
-# ======================
-# إضافة تدوينة (مع رفع الصورة)
-# ======================
 @app.route('/add', methods=['POST'])
 def add():
     if not session.get('admin'):
@@ -464,29 +735,14 @@ def add():
     image_public_id = None
     image_url = None
     
-    # معالجة الصورة
     if 'image' in request.files:
         file = request.files['image']
-        print(f"📸 الملف المستلم: {file.filename if file else 'لا يوجد ملف'}")
-        
         if file and file.filename:
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-            
-            if file_ext in allowed_extensions:
-                print(f"📤 جاري رفع الصورة: {file.filename}")
-                upload_result = upload_image_to_cloudinary(file)
-                
-                if upload_result['success']:
-                    image_public_id = upload_result['public_id']
-                    image_url = upload_result['url']
-                    print(f"✅ تم رفع الصورة بنجاح: {image_url}")
-                else:
-                    print(f"❌ فشل رفع الصورة: {upload_result.get('error')}")
-            else:
-                print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")
+            upload_result = upload_image_to_cloudinary(file)
+            if upload_result['success']:
+                image_public_id = upload_result['public_id']
+                image_url = upload_result['url']
     
-    # إنشاء التدوينة
     post = {
         'content': content,
         'image_public_id': image_public_id,
@@ -496,10 +752,7 @@ def add():
         'views': 0,
         'likes': 0
     }
-    
-    print(f"📝 بيانات التدوينة: {post}")
     db.posts.insert_one(post)
-    print(f"✅ تم نشر التدوينة مع الصورة: {image_url if image_url else 'بدون صورة'}")
     
     return redirect(url_for('admin'))
 
@@ -512,7 +765,6 @@ def delete(post_id):
     if post:
         if post.get('image_public_id'):
             delete_image_from_cloudinary(post['image_public_id'])
-        
         db.posts.delete_one({'_id': ObjectId(post_id)})
         db.comments.delete_many({'post_id': post_id})
         db.likes.delete_many({'post_id': post_id})
@@ -524,50 +776,6 @@ def logout():
     session.pop('admin', None)
     session.pop('login_time', None)
     return redirect(url_for('index'))
-
-# ======================
-# اختبار عرض الصورة
-# ======================
-@app.route('/test-image/<post_id>')
-def test_image(post_id):
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
-    if not post:
-        return "التدوينة غير موجودة", 404
-    
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>🧪 اختبار عرض الصورة</title>
-        <style>
-            body {{ font-family: 'Cairo', Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            img {{ max-width: 100%; border-radius: 12px; }}
-            .info {{ background: #f8f9fa; padding: 15px; border-radius: 12px; margin: 15px 0; }}
-            .success {{ color: green; }}
-            .error {{ color: red; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>🧪 اختبار عرض الصورة</h2>
-            <div class="info">
-                <p><strong>معرف التدوينة:</strong> {post_id}</p>
-                <p><strong>المحتوى:</strong> {post.get('content', '')[:50]}...</p>
-                <p><strong>رابط الصورة:</strong> {post.get('image_url', 'لا توجد صورة')}</p>
-            </div>
-            <hr>
-            {"<img src='" + post['image_url'] + "' alt='الصورة'>" if post.get('image_url') else '<p class="error">❌ لا توجد صورة لهذه التدوينة</p>'}
-            <br>
-            <a href="/admin" style="color: #6c63ff;">↩️ العودة للوحة التحكم</a>
-        </div>
-    </body>
-    </html>
-    """
-
-# ======================
-# الصفحات الخاصة (تصفية حسب النوع)
-# ======================
 
 @app.route('/cities')
 def cities():
