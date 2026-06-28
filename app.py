@@ -1,82 +1,82 @@
 from flask import Flask, render_template_string, request, redirect, session, url_for, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 import uuid
-from werkzeug.utils import secure_filename
-from flask_caching import Cache
-from flask_wtf.csrf import CSRFProtect
-from sqlalchemy import func
+import cloudinary
+import cloudinary.uploader
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+from bson import json_util
+import json
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key-please-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# إعدادات رفع الصور
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-
-# إنشاء مجلد static/uploads
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-db = SQLAlchemy(app)
 
 # ======================
-# نماذج قاعدة البيانات
+# إعدادات التطبيق من متغيرات البيئة (Render)
 # ======================
-
-class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
-    image = db.Column(db.String(255), nullable=True)
-    category = db.Column(db.String(50), nullable=False, default='general')
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-    views = db.Column(db.Integer, default=0)  # عدد المشاهدات
-    likes = db.Column(db.Integer, default=0)  # عدد الإعجابات
-    
-    def __repr__(self):
-        return f'<Post {self.id}: {self.content[:20]}...>'
-
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-    name = db.Column(db.String(50), nullable=False, default='زائر')
-    content = db.Column(db.Text, nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    post = db.relationship('Post', backref=db.backref('comments', lazy=True, cascade='all, delete-orphan'))
-
-class Visitor(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(100), unique=True)
-    first_visit = db.Column(db.DateTime, default=datetime.utcnow)
-    last_visit = db.Column(db.DateTime, default=datetime.utcnow)
-    visits_count = db.Column(db.Integer, default=1)
-
-class Like(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-    session_id = db.Column(db.String(100), nullable=False)
-    
-    __table_args__ = (db.UniqueConstraint('post_id', 'session_id', name='unique_like'),)
-
-class Subscriber(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-
-with app.app_context():
-    db.create_all()
+app.secret_key = os.environ.get('SECRET_KEY', 'default-secret-key-change-this')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', '1234')
+DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
 # ======================
-# دوال مساعدة
+# إعدادات MongoDB
+# ======================
+MONGO_URI = os.environ.get('MONGO_URI')
+if not MONGO_URI:
+    raise ValueError("❌ MONGO_URI غير موجود في متغيرات البيئة")
+
+# الاتصال بـ MongoDB
+client = MongoClient(MONGO_URI)
+db = client.get_database()  # يستخدم اسم قاعدة البيانات من URI
+
+# ======================
+# إعدادات Cloudinary (للصور)
+# ======================
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_NAME', 'dyaiiu0if'),
+    api_key=os.environ.get('CLOUDINARY_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_SECRET'),
+    secure=True
+)
+
+# ======================
+# دوال مساعدة للصور (Cloudinary)
 # ======================
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def upload_image_to_cloudinary(file):
+    """رفع الصورة إلى Cloudinary"""
+    try:
+        upload_result = cloudinary.uploader.upload(
+            file,
+            folder='blog_images',
+            transformation=[
+                {'width': 1200, 'height': 800, 'crop': 'limit'},
+                {'quality': 'auto:best'},
+                {'fetch_format': 'auto'}
+            ]
+        )
+        return {
+            'public_id': upload_result.get('public_id'),
+            'url': upload_result.get('secure_url'),
+            'success': True
+        }
+    except Exception as e:
+        print(f"❌ خطأ في رفع الصورة: {e}")
+        return {'success': False, 'error': str(e)}
+
+def delete_image_from_cloudinary(public_id):
+    """حذف الصورة من Cloudinary"""
+    try:
+        if public_id:
+            cloudinary.uploader.destroy(public_id)
+            return True
+    except Exception as e:
+        print(f"❌ خطأ في حذف الصورة: {e}")
+        return False
+
+# ======================
+# دوال مساعدة أخرى
+# ======================
 
 def get_category_label(category):
     categories = {
@@ -112,33 +112,40 @@ def get_category_color(category):
     return colors.get(category, '#6c63ff')
 
 def get_visitor_session():
-    """الحصول على معرف الزائر الفريد"""
     if 'visitor_id' not in session:
         session['visitor_id'] = str(uuid.uuid4())
     return session['visitor_id']
 
 def track_visitor():
-    """تتبع الزوار"""
     visitor_id = get_visitor_session()
-    visitor = Visitor.query.filter_by(session_id=visitor_id).first()
+    visitors_collection = db.visitors
+    visitor = visitors_collection.find_one({'session_id': visitor_id})
+    
     if visitor:
-        visitor.last_visit = datetime.utcnow()
-        visitor.visits_count += 1
+        visitors_collection.update_one(
+            {'session_id': visitor_id},
+            {'$set': {'last_visit': datetime.utcnow()}, '$inc': {'visits_count': 1}}
+        )
     else:
-        visitor = Visitor(session_id=visitor_id)
-        db.session.add(visitor)
-    db.session.commit()
-    return visitor
+        visitors_collection.insert_one({
+            'session_id': visitor_id,
+            'first_visit': datetime.utcnow(),
+            'last_visit': datetime.utcnow(),
+            'visits_count': 1
+        })
 
 def get_total_visitors():
-    """الحصول على عدد الزوار الكلي"""
-    return Visitor.query.count()
+    return db.visitors.count_documents({})
 
 def get_online_visitors():
-    """الحصول على عدد الزوار النشطين (آخر 5 دقائق)"""
     from datetime import timedelta
     threshold = datetime.utcnow() - timedelta(minutes=5)
-    return Visitor.query.filter(Visitor.last_visit >= threshold).count()
+    return db.visitors.count_documents({'last_visit': {'$gte': threshold}})
+
+def serialize_post(post):
+    """تحويل كائن MongoDB إلى قاموس مع تحويل ObjectId إلى string"""
+    post['_id'] = str(post['_id'])
+    return post
 
 # ======================
 # قالب تسجيل الدخول
@@ -151,80 +158,20 @@ ADMIN_LOGIN_TEMPLATE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <title>دخول الأدمن - مدونتي</title>
+    <title>دخول الأدمن</title>
     <style>
-        body {
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-            padding: 20px;
-        }
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px;
-            border-radius: 20px;
-            max-width: 400px;
-            width: 100%;
-            animation: fadeIn 0.5s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; max-width: 400px; width: 100%; }
         .login-icon { font-size: 3rem; color: #f093fb; text-align: center; display: block; margin-bottom: 15px; }
-        .login-title { color: white; text-align: center; font-weight: 700; margin-bottom: 5px; }
+        .login-title { color: white; text-align: center; font-weight: 700; }
         .login-sub { color: rgba(255,255,255,0.4); text-align: center; font-size: 0.9rem; margin-bottom: 25px; }
-        .form-control-custom {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: 12px;
-            padding: 12px 15px;
-        }
-        .form-control-custom:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #f093fb;
-            box-shadow: 0 0 20px rgba(240, 147, 251, 0.1);
-            color: white;
-        }
+        .form-control-custom { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px; padding: 12px 15px; }
+        .form-control-custom:focus { background: rgba(255,255,255,0.08); border-color: #f093fb; box-shadow: 0 0 20px rgba(240,147,251,0.1); color: white; }
         .form-control-custom::placeholder { color: rgba(255,255,255,0.3); }
-        .btn-login {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
-            border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 700;
-            color: white;
-            width: 100%;
-            transition: all 0.3s;
-        }
-        .btn-login:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.3);
-        }
-        .error-message {
-            color: #fca5a5;
-            font-size: 0.9rem;
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(239, 68, 68, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            text-align: center;
-        }
-        .back-link {
-            color: rgba(255,255,255,0.3);
-            text-decoration: none;
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            transition: all 0.3s;
-        }
+        .btn-login { background: linear-gradient(135deg, #f093fb, #f5576c); border: none; padding: 12px; border-radius: 12px; font-weight: 700; color: white; width: 100%; transition: all 0.3s; }
+        .btn-login:hover { transform: scale(1.02); box-shadow: 0 10px 30px rgba(245,87,108,0.3); }
+        .error-message { color: #fca5a5; font-size: 0.9rem; margin-top: 10px; padding: 10px; background: rgba(239,68,68,0.1); border-radius: 8px; border: 1px solid rgba(239,68,68,0.2); text-align: center; }
+        .back-link { color: rgba(255,255,255,0.3); text-decoration: none; display: block; text-align: center; margin-top: 15px; }
         .back-link:hover { color: rgba(255,255,255,0.6); }
     </style>
 </head>
@@ -235,7 +182,7 @@ ADMIN_LOGIN_TEMPLATE = '''
         <p class="login-sub">أدخل كلمة السر للوصول</p>
         <form method="POST">
             <input type="password" name="password" class="form-control form-control-custom mb-3" placeholder="كلمة السر" required autofocus>
-            <button type="submit" class="btn btn-login"><i class="bi bi-box-arrow-in-right"></i> دخول</button>
+            <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right"></i> دخول</button>
         </form>
         {% if error %}
             <div class="error-message"><i class="bi bi-exclamation-circle-fill"></i> {{ error }}</div>
@@ -247,20 +194,23 @@ ADMIN_LOGIN_TEMPLATE = '''
 '''
 
 # ======================
-# الصفحة الرئيسية (مع ترقيم الصفحات)
+# المسارات (Routes)
 # ======================
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
     per_page = 5
     
-    # تتبع الزائر
     track_visitor()
     
-    # جلب التدوينات مع ترقيم الصفحات
-    pagination = Post.query.order_by(Post.date.desc()).paginate(page=page, per_page=per_page)
-    posts = pagination.items
-    total_pages = pagination.pages
+    # جلب التدوينات من MongoDB
+    posts_cursor = db.posts.find().sort('date', -1).skip((page - 1) * per_page).limit(per_page)
+    posts = [serialize_post(p) for p in posts_cursor]
+    
+    # حساب العدد الإجمالي للصفحات
+    total_posts = db.posts.count_documents({})
+    total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
     current_page = page
     
     with open('index.html', encoding='utf-8') as f:
@@ -273,18 +223,21 @@ def index():
                                   get_category_icon=get_category_icon,
                                   get_category_color=get_category_color)
 
-# ======================
-# عرض تدوينة مفردة (لزيادة المشاهدات)
-# ======================
-@app.route('/post/<int:id>')
-def view_post(id):
-    post = Post.query.get_or_404(id)
+@app.route('/post/<post_id>')
+def view_post(post_id):
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    if not post:
+        return "التدوينة غير موجودة", 404
+    
     # زيادة عدد المشاهدات
-    post.views += 1
-    db.session.commit()
+    db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'views': 1}})
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    post = serialize_post(post)
     
     # جلب التعليقات
-    comments = Comment.query.filter_by(post_id=id).order_by(Comment.date.desc()).all()
+    comments = list(db.comments.find({'post_id': post_id}).sort('date', -1))
+    for c in comments:
+        c['_id'] = str(c['_id'])
     
     return render_template_string('''
         <!DOCTYPE html>
@@ -312,7 +265,6 @@ def view_post(id):
                 .comment-form button { background: #6c63ff; color: white; border: none; padding: 10px 25px; border-radius: 30px; }
                 .btn-like { background: none; border: none; color: #e74c3c; font-size: 1.2rem; transition: all 0.3s; }
                 .btn-like:hover { transform: scale(1.2); }
-                .btn-like.liked { color: #e74c3c; }
                 .share-btn { background: none; border: none; color: #6c63ff; font-size: 1.2rem; transition: all 0.3s; }
                 .share-btn:hover { transform: scale(1.1); }
             </style>
@@ -329,7 +281,7 @@ def view_post(id):
                     </div>
                     
                     <div style="margin: 15px 0;">
-                        <button class="btn-like" onclick="toggleLike({{ post.id }})" id="like-btn">
+                        <button class="btn-like" onclick="toggleLike('{{ post._id }}')" id="like-btn">
                             <i class="bi bi-heart-fill"></i> أعجبني
                         </button>
                         <button class="share-btn" onclick="sharePost()">
@@ -337,8 +289,8 @@ def view_post(id):
                         </button>
                     </div>
                     
-                    {% if post.image %}
-                        <img src="/static/{{ post.image }}" alt="صورة التدوينة">
+                    {% if post.image_url %}
+                        <img src="{{ post.image_url }}" alt="صورة التدوينة">
                     {% endif %}
                     
                     <div class="post-content" style="font-size: 1.1rem; line-height: 1.9; color: #2d3748;">
@@ -348,7 +300,6 @@ def view_post(id):
                     <a href="/" class="back-btn"><i class="bi bi-arrow-right"></i> العودة للرئيسية</a>
                 </div>
                 
-                <!-- التعليقات -->
                 <div class="comments-section">
                     <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ comments|length }})</h5>
                     
@@ -362,7 +313,7 @@ def view_post(id):
                     
                     <div class="comment-form mt-3">
                         <h6>💬 أضف تعليقاً</h6>
-                        <form action="/comment/{{ post.id }}" method="POST">
+                        <form action="/comment/{{ post._id }}" method="POST">
                             <input type="text" name="name" class="form-control mb-2" placeholder="اسمك (اختياري)" style="border-radius: 12px;">
                             <textarea name="content" class="form-control mb-2" placeholder="اكتب تعليقك..." rows="3" required style="border-radius: 12px;"></textarea>
                             <button type="submit"><i class="bi bi-send"></i> نشر التعليق</button>
@@ -377,17 +328,12 @@ def view_post(id):
                         .then(response => response.json())
                         .then(data => {
                             document.getElementById('like-count').textContent = data.likes;
-                            const btn = document.getElementById('like-btn');
-                            btn.classList.toggle('liked');
                         });
                 }
                 
                 function sharePost() {
                     if (navigator.share) {
-                        navigator.share({
-                            title: '{{ post.content[:30] }}',
-                            url: window.location.href
-                        });
+                        navigator.share({ title: '{{ post.content[:30] }}', url: window.location.href });
                     } else {
                         navigator.clipboard.writeText(window.location.href);
                         alert('✅ تم نسخ الرابط!');
@@ -398,63 +344,73 @@ def view_post(id):
         </html>
     ''', post=post, comments=comments)
 
-# ======================
-# إضافة تعليق
-# ======================
-@app.route('/comment/<int:post_id>', methods=['POST'])
+@app.route('/comment/<post_id>', methods=['POST'])
 def add_comment(post_id):
-    post = Post.query.get_or_404(post_id)
     name = request.form.get('name', '').strip() or 'زائر'
     content = request.form.get('content', '').strip()
     
     if not content:
         return "التعليق مطلوب", 400
     
-    comment = Comment(post_id=post_id, name=name, content=content)
-    db.session.add(comment)
-    db.session.commit()
+    # التحقق من وجود التدوينة
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    if not post:
+        return "التدوينة غير موجودة", 404
     
-    return redirect(url_for('view_post', id=post_id))
+    comment = {
+        'post_id': post_id,
+        'name': name,
+        'content': content,
+        'date': datetime.utcnow()
+    }
+    db.comments.insert_one(comment)
+    
+    return redirect(url_for('view_post', post_id=post_id))
 
-# ======================
-# إعجاب بتدوينة (API)
-# ======================
-@app.route('/like/<int:post_id>', methods=['POST'])
+@app.route('/like/<post_id>', methods=['POST'])
 def like_post(post_id):
-    post = Post.query.get_or_404(post_id)
     visitor_id = get_visitor_session()
     
-    # التحقق إذا كان المستخدم أعجب سابقاً
-    existing_like = Like.query.filter_by(post_id=post_id, session_id=visitor_id).first()
+    # التحقق من وجود التدوينة
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
+    
+    # التحقق من وجود إعجاب سابق
+    existing_like = db.likes.find_one({'post_id': post_id, 'session_id': visitor_id})
     
     if existing_like:
         # إزالة الإعجاب
-        db.session.delete(existing_like)
-        post.likes -= 1
-        liked = False
+        db.likes.delete_one({'_id': existing_like['_id']})
+        db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': -1}})
     else:
         # إضافة إعجاب
-        like = Like(post_id=post_id, session_id=visitor_id)
-        db.session.add(like)
-        post.likes += 1
-        liked = True
+        like = {
+            'post_id': post_id,
+            'session_id': visitor_id
+        }
+        db.likes.insert_one(like)
+        db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': 1}})
     
-    db.session.commit()
-    
-    return jsonify({'likes': post.likes, 'liked': liked})
+    updated_post = db.posts.find_one({'_id': ObjectId(post_id)})
+    return jsonify({'likes': updated_post.get('likes', 0)})
 
-# ======================
-# لوحة التحكم (مع الإحصائيات)
-# ======================
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if session.get('admin'):
-        posts = Post.query.order_by(Post.date.desc()).all()
-        total_posts = Post.query.count()
-        total_comments = Comment.query.count()
+        posts = list(db.posts.find().sort('date', -1))
+        for p in posts:
+            p['_id'] = str(p['_id'])
+        
+        total_posts = db.posts.count_documents({})
+        total_comments = db.comments.count_documents({})
         total_visitors = get_total_visitors()
         online_visitors = get_online_visitors()
-        total_likes = db.session.query(func.sum(Post.likes)).scalar() or 0
+        
+        # حساب الإعجابات الكلية
+        total_likes = 0
+        for p in db.posts.find():
+            total_likes += p.get('likes', 0)
         
         stats = {
             'total_posts': total_posts,
@@ -472,7 +428,7 @@ def admin():
     
     if request.method == 'POST':
         password = request.form.get('password', '')
-        if password == '1234':
+        if password == ADMIN_PASSWORD:
             session['admin'] = True
             session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             return redirect(url_for('admin'))
@@ -481,9 +437,6 @@ def admin():
     
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
-# ======================
-# إضافة تدوينة
-# ======================
 @app.route('/add', methods=['POST'])
 def add():
     if not session.get('admin'):
@@ -495,43 +448,52 @@ def add():
     if not content:
         return "المحتوى مطلوب", 400
     
-    image_filename = None
+    image_public_id = None
+    image_url = None
+    
     if 'image' in request.files:
         file = request.files['image']
-        if file and file.filename and allowed_file(file.filename):
-            ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"{uuid.uuid4().hex}.{ext}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            image_filename = f"uploads/{filename}"
+        if file and file.filename:
+            upload_result = upload_image_to_cloudinary(file)
+            if upload_result['success']:
+                image_public_id = upload_result['public_id']
+                image_url = upload_result['url']
     
-    post = Post(content=content, image=image_filename, category=category)
-    db.session.add(post)
-    db.session.commit()
+    post = {
+        'content': content,
+        'image_public_id': image_public_id,
+        'image_url': image_url,
+        'category': category,
+        'date': datetime.utcnow(),
+        'views': 0,
+        'likes': 0
+    }
+    db.posts.insert_one(post)
+    
     return redirect(url_for('admin'))
 
-# ======================
-# حذف تدوينة
-# ======================
-@app.route('/delete/<int:id>', methods=['POST'])
-def delete(id):
+@app.route('/delete/<post_id>', methods=['POST'])
+def delete(post_id):
     if not session.get('admin'):
         return "غير مصرح لك", 403
     
-    post = Post.query.get(id)
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
     if post:
-        if post.image:
-            image_path = os.path.join('static', post.image)
-            if os.path.exists(image_path):
-                os.remove(image_path)
-        # حذف التعليقات المرتبطة (cascade)
-        db.session.delete(post)
-        db.session.commit()
+        # حذف الصورة من Cloudinary
+        if post.get('image_public_id'):
+            delete_image_from_cloudinary(post['image_public_id'])
+        
+        # حذف التدوينة
+        db.posts.delete_one({'_id': ObjectId(post_id)})
+        
+        # حذف التعليقات المرتبطة
+        db.comments.delete_many({'post_id': post_id})
+        
+        # حذف الإعجابات المرتبطة
+        db.likes.delete_many({'post_id': post_id})
+    
     return redirect(url_for('admin'))
 
-# ======================
-# تسجيل الخروج
-# ======================
 @app.route('/logout')
 def logout():
     session.pop('admin', None)
@@ -539,8 +501,9 @@ def logout():
     return redirect(url_for('index'))
 
 # ======================
-# الصفحات الخاصة (تصفية حسب النوع مع ترقيم)
+# الصفحات الخاصة (تصفية حسب النوع)
 # ======================
+
 @app.route('/cities')
 def cities():
     return render_category_page('cities', 'مدن زرتها', '🗺️ استكشف المدن التي زرتها وذكرياتك فيها', 'bi-geo-alt-fill', '#4ecdc4')
@@ -565,9 +528,11 @@ def render_category_page(category, title, subtitle, icon, color):
     page = request.args.get('page', 1, type=int)
     per_page = 5
     
-    pagination = Post.query.filter_by(category=category).order_by(Post.date.desc()).paginate(page=page, per_page=per_page)
-    posts = pagination.items
-    total_pages = pagination.pages
+    posts_cursor = db.posts.find({'category': category}).sort('date', -1).skip((page - 1) * per_page).limit(per_page)
+    posts = [serialize_post(p) for p in posts_cursor]
+    
+    total_posts = db.posts.count_documents({'category': category})
+    total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
     current_page = page
     
     return render_template_string('''
@@ -624,8 +589,8 @@ def render_category_page(category, title, subtitle, icon, color):
                         <div class="post-card">
                             <span class="post-category-badge">{{ get_category_label(post.category) }}</span>
                             <div class="post-content">{{ post.content }}</div>
-                            {% if post.image %}
-                                <img src="/static/{{ post.image }}" alt="صورة التدوينة">
+                            {% if post.image_url %}
+                                <img src="{{ post.image_url }}" alt="صورة التدوينة">
                             {% endif %}
                             <div class="post-meta">
                                 <div class="post-stats">
@@ -635,11 +600,10 @@ def render_category_page(category, title, subtitle, icon, color):
                                 </div>
                                 <span class="post-date"><i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}</span>
                             </div>
-                            <a href="/post/{{ post.id }}" class="read-more">اقرأ المزيد →</a>
+                            <a href="/post/{{ post._id }}" class="read-more">اقرأ المزيد →</a>
                         </div>
                     {% endfor %}
                     
-                    <!-- ترقيم الصفحات -->
                     {% if total_pages > 1 %}
                         <div class="pagination">
                             {% if current_page > 1 %}
@@ -647,7 +611,6 @@ def render_category_page(category, title, subtitle, icon, color):
                             {% else %}
                                 <span class="disabled">‹ السابق</span>
                             {% endif %}
-                            
                             {% for p in range(1, total_pages + 1) %}
                                 {% if p == current_page %}
                                     <span class="active">{{ p }}</span>
@@ -655,7 +618,6 @@ def render_category_page(category, title, subtitle, icon, color):
                                     <a href="?page={{ p }}">{{ p }}</a>
                                 {% endif %}
                             {% endfor %}
-                            
                             {% if current_page < total_pages %}
                                 <a href="?page={{ current_page + 1 }}">التالي ›</a>
                             {% else %}
@@ -674,13 +636,6 @@ def render_category_page(category, title, subtitle, icon, color):
                 
                 <div class="footer">© 2026 مدونتي</div>
             </div>
-            <script>
-                document.querySelectorAll('.post-card .post-content').forEach(el => {
-                    if (el.textContent.length > 200) {
-                        el.textContent = el.textContent.substring(0, 200) + '...';
-                    }
-                });
-            </script>
         </body>
         </html>
     ''', posts=posts, total_pages=total_pages, current_page=current_page, 
@@ -691,6 +646,5 @@ def render_category_page(category, title, subtitle, icon, color):
 # تشغيل التطبيق
 # ======================
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=DEBUG)
