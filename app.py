@@ -6,6 +6,7 @@ import cloudinary
 import cloudinary.uploader
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -24,12 +25,10 @@ if not MONGO_URI:
     raise ValueError("❌ MONGO_URI غير موجود في متغيرات البيئة")
 
 client = MongoClient(MONGO_URI)
-
-# ✅ تحديد اسم قاعدة البيانات (blog)
-db = client.get_database('blog')  # يمكنك تغيير 'blog' إلى أي اسم تريده
+db = client.get_database('blog')
 
 # ======================
-# إعدادات Cloudinary
+# إعدادات Cloudinary (للصور)
 # ======================
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_NAME', 'dyaiiu0if'),
@@ -39,20 +38,34 @@ cloudinary.config(
 )
 
 # ======================
-# دوال مساعدة للصور
+# دوال مساعدة للصور (Cloudinary)
 # ======================
 
 def upload_image_to_cloudinary(file):
+    """رفع الصورة إلى Cloudinary مع تحسينات"""
     try:
+        # التحقق من وجود الملف
+        if not file or not file.filename:
+            return {'success': False, 'error': 'لا يوجد ملف'}
+
+        print(f"📤 جاري رفع الصورة: {file.filename}")  # للتتبع في السجلات
+
+        # رفع الصورة مع إعدادات محسنة
         upload_result = cloudinary.uploader.upload(
             file,
             folder='blog_images',
+            allowed_formats=['jpg', 'jpeg', 'png', 'gif', 'webp'],
             transformation=[
                 {'width': 1200, 'height': 800, 'crop': 'limit'},
                 {'quality': 'auto:best'},
                 {'fetch_format': 'auto'}
-            ]
+            ],
+            use_filename=True,
+            unique_filename=True
         )
+
+        print(f"✅ تم رفع الصورة بنجاح: {upload_result.get('public_id')}")  # للتتبع
+
         return {
             'public_id': upload_result.get('public_id'),
             'url': upload_result.get('secure_url'),
@@ -63,9 +76,11 @@ def upload_image_to_cloudinary(file):
         return {'success': False, 'error': str(e)}
 
 def delete_image_from_cloudinary(public_id):
+    """حذف الصورة من Cloudinary"""
     try:
         if public_id:
-            cloudinary.uploader.destroy(public_id)
+            result = cloudinary.uploader.destroy(public_id)
+            print(f"🗑️ تم حذف الصورة: {public_id}")  # للتتبع
             return True
     except Exception as e:
         print(f"❌ خطأ في حذف الصورة: {e}")
@@ -283,6 +298,8 @@ def view_post(post_id):
                     
                     {% if post.image_url %}
                         <img src="{{ post.image_url }}" alt="صورة التدوينة">
+                    {% else %}
+                        <p style="color: #868e96; font-style: italic;">⚠️ لا توجد صورة لهذه التدوينة</p>
                     {% endif %}
                     
                     <div class="post-content" style="font-size: 1.1rem; line-height: 1.9; color: #2d3748;">
@@ -423,6 +440,9 @@ def admin():
     
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
+# ======================
+# إضافة تدوينة (مع رفع الصورة لـ Cloudinary)
+# ======================
 @app.route('/add', methods=['POST'])
 def add():
     if not session.get('admin'):
@@ -437,14 +457,26 @@ def add():
     image_public_id = None
     image_url = None
     
+    # معالجة الصورة
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename:
-            upload_result = upload_image_to_cloudinary(file)
-            if upload_result['success']:
-                image_public_id = upload_result['public_id']
-                image_url = upload_result['url']
+            # التحقق من نوع الملف
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+            
+            if file_ext in allowed_extensions:
+                upload_result = upload_image_to_cloudinary(file)
+                if upload_result['success']:
+                    image_public_id = upload_result['public_id']
+                    image_url = upload_result['url']
+                    print(f"✅ تم رفع الصورة: {image_url}")  # للتتبع
+                else:
+                    print(f"❌ فشل رفع الصورة: {upload_result.get('error')}")  # للتتبع
+            else:
+                print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")  # للتتبع
     
+    # إنشاء التدوينة
     post = {
         'content': content,
         'image_public_id': image_public_id,
@@ -455,6 +487,7 @@ def add():
         'likes': 0
     }
     db.posts.insert_one(post)
+    print(f"📝 تم نشر التدوينة: {content[:30]}...")  # للتتبع
     
     return redirect(url_for('admin'))
 
