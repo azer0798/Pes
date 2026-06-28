@@ -150,6 +150,31 @@ def get_real_views(post_id):
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     return post.get('views', 0) if post else 0
 
+def has_user_viewed_post(post_id, session_id):
+    """التحقق مما إذا كان المستخدم قد شاهد هذه التدوينة بالفعل"""
+    view = db.post_views.find_one({
+        'post_id': post_id,
+        'session_id': session_id
+    })
+    return view is not None
+
+def add_post_view(post_id, session_id):
+    """إضافة مشاهدة جديدة إذا لم يشاهد المستخدم التدوينة من قبل"""
+    if not has_user_viewed_post(post_id, session_id):
+        # تسجيل أن المستخدم شاهد التدوينة
+        db.post_views.insert_one({
+            'post_id': post_id,
+            'session_id': session_id,
+            'date': datetime.utcnow()
+        })
+        # زيادة عدد المشاهدات في التدوينة
+        db.posts.update_one(
+            {'_id': ObjectId(post_id)},
+            {'$inc': {'views': 1}}
+        )
+        return True
+    return False
+
 def serialize_post(post):
     post['_id'] = str(post['_id'])
     return post
@@ -237,7 +262,7 @@ ADMIN_LOGIN_TEMPLATE = '''
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # ✅ 10 منشورات في كل صفحة
+    per_page = 10
     
     track_visitor()
     
@@ -266,8 +291,10 @@ def view_post(post_id):
     if not post:
         return "التدوينة غير موجودة", 404
     
-    # ✅ زيادة عدد المشاهدات الحقيقي
-    db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'views': 1}})
+    # ✅ مشاهدة واحدة لكل مستخدم
+    session_id = get_visitor_session()
+    add_post_view(post_id, session_id)
+    
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     post = serialize_post(post)
     
@@ -277,7 +304,7 @@ def view_post(post_id):
     # التحقق من إعجاب المستخدم بالتدوينة
     user_liked = db.likes.find_one({
         'post_id': post_id,
-        'session_id': get_visitor_session()
+        'session_id': session_id
     }) is not None
     
     return render_template_string('''
@@ -686,7 +713,7 @@ def like_comment(comment_id):
         'liked': liked
     })
 
-# ✅ حذف تعليق (للأدمن فقط)
+# حذف تعليق (للأدمن فقط)
 @app.route('/delete-comment/<comment_id>', methods=['POST'])
 def delete_comment(comment_id):
     if not session.get('admin'):
@@ -868,7 +895,7 @@ def dates():
 
 def render_category_page(category, title, subtitle, icon, color):
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # ✅ 10 منشورات في كل صفحة
+    per_page = 10
     
     posts_cursor = db.posts.find({'category': category}).sort('date', -1).skip((page - 1) * per_page).limit(per_page)
     posts = []
@@ -893,7 +920,21 @@ def render_category_page(category, title, subtitle, icon, color):
                 * { font-family: 'Cairo', sans-serif; }
                 body { background: #f0f2f5; padding: 40px 20px; }
                 .container { max-width: 750px; margin: 0 auto; }
-                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
+                .page-header { 
+                    text-align: center; 
+                    padding-bottom: 30px; 
+                    border-bottom: 1px solid #e9ecef; 
+                    margin-bottom: 30px; 
+                    background: white; 
+                    border-radius: 12px; 
+                    padding: 25px; 
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08); 
+                    position: sticky; 
+                    top: 0; 
+                    z-index: 100;
+                    backdrop-filter: blur(10px);
+                    background: rgba(255,255,255,0.95);
+                }
                 .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
                 .page-header h1 i { color: {{ color }}; }
                 .page-header p { color: #868e96; }
