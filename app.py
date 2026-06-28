@@ -6,7 +6,6 @@ import cloudinary
 import cloudinary.uploader
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -44,13 +43,21 @@ cloudinary.config(
 def upload_image_to_cloudinary(file):
     """رفع الصورة إلى Cloudinary مع تحسينات"""
     try:
-        # التحقق من وجود الملف
         if not file or not file.filename:
+            print("❌ لا يوجد ملف للرفع")
             return {'success': False, 'error': 'لا يوجد ملف'}
 
-        print(f"📤 جاري رفع الصورة: {file.filename}")  # للتتبع في السجلات
+        print(f"📤 جاري رفع الصورة: {file.filename}")
 
-        # رفع الصورة مع إعدادات محسنة
+        # التحقق من نوع الملف
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")
+            return {'success': False, 'error': f'نوع الملف غير مدعوم: {file_ext}'}
+
+        # رفع الصورة
         upload_result = cloudinary.uploader.upload(
             file,
             folder='blog_images',
@@ -61,10 +68,12 @@ def upload_image_to_cloudinary(file):
                 {'fetch_format': 'auto'}
             ],
             use_filename=True,
-            unique_filename=True
+            unique_filename=True,
+            resource_type='image'
         )
 
-        print(f"✅ تم رفع الصورة بنجاح: {upload_result.get('public_id')}")  # للتتبع
+        print(f"✅ تم رفع الصورة بنجاح: {upload_result.get('public_id')}")
+        print(f"✅ رابط الصورة: {upload_result.get('secure_url')}")
 
         return {
             'public_id': upload_result.get('public_id'),
@@ -72,7 +81,7 @@ def upload_image_to_cloudinary(file):
             'success': True
         }
     except Exception as e:
-        print(f"❌ خطأ في رفع الصورة: {e}")
+        print(f"❌ خطأ في رفع الصورة: {str(e)}")
         return {'success': False, 'error': str(e)}
 
 def delete_image_from_cloudinary(public_id):
@@ -80,7 +89,7 @@ def delete_image_from_cloudinary(public_id):
     try:
         if public_id:
             result = cloudinary.uploader.destroy(public_id)
-            print(f"🗑️ تم حذف الصورة: {public_id}")  # للتتبع
+            print(f"🗑️ تم حذف الصورة: {public_id}")
             return True
     except Exception as e:
         print(f"❌ خطأ في حذف الصورة: {e}")
@@ -298,8 +307,6 @@ def view_post(post_id):
                     
                     {% if post.image_url %}
                         <img src="{{ post.image_url }}" alt="صورة التدوينة">
-                    {% else %}
-                        <p style="color: #868e96; font-style: italic;">⚠️ لا توجد صورة لهذه التدوينة</p>
                     {% endif %}
                     
                     <div class="post-content" style="font-size: 1.1rem; line-height: 1.9; color: #2d3748;">
@@ -441,7 +448,7 @@ def admin():
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
 # ======================
-# إضافة تدوينة (مع رفع الصورة لـ Cloudinary)
+# إضافة تدوينة (مع رفع الصورة)
 # ======================
 @app.route('/add', methods=['POST'])
 def add():
@@ -460,21 +467,24 @@ def add():
     # معالجة الصورة
     if 'image' in request.files:
         file = request.files['image']
+        print(f"📸 الملف المستلم: {file.filename if file else 'لا يوجد ملف'}")
+        
         if file and file.filename:
-            # التحقق من نوع الملف
             allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
             file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
             
             if file_ext in allowed_extensions:
+                print(f"📤 جاري رفع الصورة: {file.filename}")
                 upload_result = upload_image_to_cloudinary(file)
+                
                 if upload_result['success']:
                     image_public_id = upload_result['public_id']
                     image_url = upload_result['url']
-                    print(f"✅ تم رفع الصورة: {image_url}")  # للتتبع
+                    print(f"✅ تم رفع الصورة بنجاح: {image_url}")
                 else:
-                    print(f"❌ فشل رفع الصورة: {upload_result.get('error')}")  # للتتبع
+                    print(f"❌ فشل رفع الصورة: {upload_result.get('error')}")
             else:
-                print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")  # للتتبع
+                print(f"⚠️ نوع الملف غير مدعوم: {file_ext}")
     
     # إنشاء التدوينة
     post = {
@@ -486,8 +496,10 @@ def add():
         'views': 0,
         'likes': 0
     }
+    
+    print(f"📝 بيانات التدوينة: {post}")
     db.posts.insert_one(post)
-    print(f"📝 تم نشر التدوينة: {content[:30]}...")  # للتتبع
+    print(f"✅ تم نشر التدوينة مع الصورة: {image_url if image_url else 'بدون صورة'}")
     
     return redirect(url_for('admin'))
 
@@ -514,7 +526,47 @@ def logout():
     return redirect(url_for('index'))
 
 # ======================
-# الصفحات الخاصة
+# اختبار عرض الصورة
+# ======================
+@app.route('/test-image/<post_id>')
+def test_image(post_id):
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    if not post:
+        return "التدوينة غير موجودة", 404
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>🧪 اختبار عرض الصورة</title>
+        <style>
+            body {{ font-family: 'Cairo', Arial, sans-serif; padding: 40px; background: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            img {{ max-width: 100%; border-radius: 12px; }}
+            .info {{ background: #f8f9fa; padding: 15px; border-radius: 12px; margin: 15px 0; }}
+            .success {{ color: green; }}
+            .error {{ color: red; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>🧪 اختبار عرض الصورة</h2>
+            <div class="info">
+                <p><strong>معرف التدوينة:</strong> {post_id}</p>
+                <p><strong>المحتوى:</strong> {post.get('content', '')[:50]}...</p>
+                <p><strong>رابط الصورة:</strong> {post.get('image_url', 'لا توجد صورة')}</p>
+            </div>
+            <hr>
+            {"<img src='" + post['image_url'] + "' alt='الصورة'>" if post.get('image_url') else '<p class="error">❌ لا توجد صورة لهذه التدوينة</p>'}
+            <br>
+            <a href="/admin" style="color: #6c63ff;">↩️ العودة للوحة التحكم</a>
+        </div>
+    </body>
+    </html>
+    """
+
+# ======================
+# الصفحات الخاصة (تصفية حسب النوع)
 # ======================
 
 @app.route('/cities')
