@@ -145,17 +145,24 @@ def get_online_visitors():
     threshold = datetime.utcnow() - timedelta(minutes=5)
     return db.visitors.count_documents({'last_visit': {'$gte': threshold}})
 
+def get_real_views(post_id):
+    """جلب عدد المشاهدات الحقيقي من قاعدة البيانات"""
+    post = db.posts.find_one({'_id': ObjectId(post_id)})
+    return post.get('views', 0) if post else 0
+
 def serialize_post(post):
     post['_id'] = str(post['_id'])
     return post
 
 def get_post_with_comments(post):
-    """جلب التدوينة مع تعليقاتها"""
+    """جلب التدوينة مع تعليقاتها (آخر تعليق واحد فقط)"""
     post = serialize_post(post)
-    comments = list(db.comments.find({'post_id': post['_id']}).sort('date', -1))
+    # جلب آخر تعليق واحد فقط
+    comments = list(db.comments.find({'post_id': post['_id']}).sort('date', -1).limit(1))
     for c in comments:
         c['_id'] = str(c['_id'])
     post['comments'] = comments
+    post['comments_count'] = db.comments.count_documents({'post_id': post['_id']})
     return post
 
 def get_comments_tree(post_id, parent_id=None):
@@ -230,7 +237,7 @@ ADMIN_LOGIN_TEMPLATE = '''
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
-    per_page = 5
+    per_page = 10  # ✅ 10 منشورات في كل صفحة
     
     track_visitor()
     
@@ -259,6 +266,7 @@ def view_post(post_id):
     if not post:
         return "التدوينة غير موجودة", 404
     
+    # ✅ زيادة عدد المشاهدات الحقيقي
     db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'views': 1}})
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     post = serialize_post(post)
@@ -290,21 +298,22 @@ def view_post(post_id):
                 .post-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
                 .post-card img { max-width: 100%; border-radius: 12px; margin: 15px 0; }
                 
-                .post-actions { display: flex; gap: 20px; padding: 10px 0; border-top: 1px solid #e4e6eb; margin-top: 15px; }
+                .post-actions { display: flex; gap: 20px; padding: 10px 0; border-top: 1px solid #e4e6eb; margin-top: 15px; flex-wrap: wrap; }
                 .post-actions button { background: none; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 600; color: #65676b; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
                 .post-actions button:hover { background: #f0f2f5; }
                 .post-actions .liked { color: #1877f2; }
                 .post-actions .liked i { color: #1877f2; }
                 
-                .reaction-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e4e6eb; margin-bottom: 10px; }
+                .reaction-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e4e6eb; margin-bottom: 10px; flex-wrap: wrap; }
                 .reaction-bar .likes-count { font-weight: 600; color: #65676b; font-size: 0.9rem; }
                 
                 .comments-section { margin-top: 25px; }
                 .comments-section h5 { color: #1a1a1a; font-weight: 700; margin-bottom: 15px; }
                 
-                .comment-input { display: flex; gap: 10px; margin-bottom: 20px; }
-                .comment-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 12px 15px; resize: none; font-size: 0.95rem; background: #f0f2f5; transition: all 0.3s; }
-                .comment-input textarea:focus { background: white; border-color: #1877f2; outline: none; box-shadow: 0 0 0 2px rgba(24,119,242,0.2); }
+                .comment-input { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+                .comment-input input { border-radius: 20px; border: 1px solid #e4e6eb; padding: 10px 15px; font-size: 0.9rem; background: #f0f2f5; transition: all 0.3s; flex: 0 0 150px; }
+                .comment-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 12px 15px; resize: none; font-size: 0.95rem; background: #f0f2f5; transition: all 0.3s; min-width: 200px; }
+                .comment-input input:focus, .comment-input textarea:focus { background: white; border-color: #1877f2; outline: none; box-shadow: 0 0 0 2px rgba(24,119,242,0.2); }
                 .comment-input button { background: #1877f2; color: white; border: none; border-radius: 20px; padding: 0 20px; font-weight: 600; transition: all 0.3s; }
                 .comment-input button:hover { background: #166fe5; transform: scale(1.02); }
                 
@@ -315,15 +324,18 @@ def view_post(post_id):
                 .comment-name { font-weight: 600; color: #1a1a1a; font-size: 0.95rem; }
                 .comment-name span { font-weight: 400; color: #65676b; font-size: 0.8rem; margin-right: 8px; }
                 .comment-text { color: #1a1a1a; margin: 5px 0; }
-                .comment-actions { display: flex; gap: 15px; margin-top: 5px; }
+                .comment-actions { display: flex; gap: 15px; margin-top: 5px; flex-wrap: wrap; }
                 .comment-actions button { background: none; border: none; color: #65676b; font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; transition: all 0.2s; }
                 .comment-actions button:hover { background: #e4e6eb; }
                 .comment-actions .liked { color: #1877f2; }
+                .comment-actions .delete-comment { color: #dc3545; }
+                .comment-actions .delete-comment:hover { background: #f8d7da; }
                 
                 .comment-replies { margin-right: 52px; padding-right: 15px; border-right: 2px solid #e4e6eb; }
-                .comment-reply-input { display: flex; gap: 10px; margin: 10px 0; }
-                .comment-reply-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 8px 15px; resize: none; font-size: 0.9rem; background: #f0f2f5; }
-                .comment-reply-input textarea:focus { background: white; border-color: #1877f2; outline: none; }
+                .comment-reply-input { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+                .comment-reply-input input { border-radius: 20px; border: 1px solid #e4e6eb; padding: 8px 15px; font-size: 0.85rem; background: #f0f2f5; flex: 0 0 120px; }
+                .comment-reply-input textarea { flex: 1; border-radius: 20px; border: 1px solid #e4e6eb; padding: 8px 15px; resize: none; font-size: 0.9rem; background: #f0f2f5; min-width: 150px; }
+                .comment-reply-input input:focus, .comment-reply-input textarea:focus { background: white; border-color: #1877f2; outline: none; }
                 .comment-reply-input button { background: #1877f2; color: white; border: none; border-radius: 20px; padding: 0 15px; font-weight: 600; font-size: 0.85rem; }
                 
                 .back-btn { display: inline-block; margin-top: 15px; padding: 8px 20px; background: #1877f2; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s; }
@@ -339,6 +351,10 @@ def view_post(post_id):
                     .post-card { padding: 20px; }
                     .comment-replies { margin-right: 20px; padding-right: 10px; }
                     .post-actions { flex-wrap: wrap; }
+                    .comment-input { flex-direction: column; }
+                    .comment-input input { flex: 1; }
+                    .comment-reply-input { flex-direction: column; }
+                    .comment-reply-input input { flex: 1; }
                 }
             </style>
         </head>
@@ -348,6 +364,7 @@ def view_post(post_id):
                     <h4 class="mb-2">{{ post.content[:50] }}...</h4>
                     <div style="color: #65676b; font-size: 0.9rem; margin-bottom: 10px;">
                         <span><i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <span style="margin-right: 15px;"><i class="bi bi-eye"></i> {{ post.views }} مشاهدة</span>
                     </div>
                     
                     {% if post.image_url %}
@@ -361,6 +378,7 @@ def view_post(post_id):
                     <div class="reaction-bar">
                         <span class="likes-count" id="like-count-display"><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
                         <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-chat"></i> {{ comments|length }}</span>
+                        <span style="color: #65676b; font-size: 0.9rem;"><i class="bi bi-eye"></i> {{ post.views }}</span>
                     </div>
                     
                     <div class="post-actions">
@@ -393,6 +411,7 @@ def view_post(post_id):
                     <h5><i class="bi bi-chat-dots"></i> التعليقات ({{ comments|length }})</h5>
                     
                     <div class="comment-input">
+                        <input type="text" id="comment-name" placeholder="اسمك" class="form-control">
                         <textarea id="comment-input" placeholder="اكتب تعليقاً..." rows="1"></textarea>
                         <button onclick="addComment('{{ post._id }}')">نشر</button>
                     </div>
@@ -429,22 +448,29 @@ def view_post(post_id):
                 }
                 
                 function addComment(postId, parentId = null) {
-                    const input = parentId ? 
+                    const nameInput = parentId ? 
+                        document.getElementById('reply-name-' + parentId) : 
+                        document.getElementById('comment-name');
+                    const contentInput = parentId ? 
                         document.getElementById('reply-input-' + parentId) : 
                         document.getElementById('comment-input');
                     
-                    const content = input.value.trim();
+                    const name = nameInput.value.trim() || 'زائر';
+                    const content = contentInput.value.trim();
                     if (!content) return;
                     
                     fetch('/comment/' + postId, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: content, parent_id: parentId })
+                        body: JSON.stringify({ name: name, content: content, parent_id: parentId })
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            input.value = '';
+                            contentInput.value = '';
+                            if (parentId) {
+                                document.getElementById('reply-form-' + parentId).style.display = 'none';
+                            }
                             loadComments(postId);
                         }
                     });
@@ -479,6 +505,17 @@ def view_post(post_id):
                                 btn.classList.remove('liked');
                             }
                             count.textContent = data.likes;
+                        });
+                }
+                
+                function deleteComment(commentId, postId) {
+                    if (!confirm('هل أنت متأكد من حذف هذا التعليق؟')) return;
+                    fetch('/delete-comment/' + commentId, { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                loadComments(postId);
+                            }
                         });
                 }
                 
@@ -541,9 +578,16 @@ def view_post(post_id):
 # ======================
 
 def render_comment(comment, post_id, depth=0):
-    """عرض تعليق مع ردوده (مثل فيسبوك)"""
+    """عرض تعليق مع ردوده (مثل فيسبوك) مع زر حذف للأدمن"""
     indent = depth * 20
     max_depth = 5
+    
+    is_admin = session.get('admin', False)
+    delete_btn = f'''
+    <button onclick="deleteComment('{comment['_id']}', '{post_id}')" class="delete-comment">
+        <i class="bi bi-trash"></i> حذف
+    </button>
+    ''' if is_admin else ''
     
     html = f'''
     <div class="comment" style="margin-right: {indent}px;" id="comment-{comment['_id']}">
@@ -556,9 +600,11 @@ def render_comment(comment, post_id, depth=0):
                     <i class="bi bi-hand-thumbs-up"></i> <span id="comment-like-count-{comment['_id']}">{comment.get('likes_count', 0)}</span>
                 </button>
                 <button onclick="toggleReply('{comment['_id']}')">رد</button>
+                {delete_btn}
             </div>
             
             <div class="comment-reply-input" id="reply-form-{comment['_id']}" style="display: none;">
+                <input type="text" id="reply-name-{comment['_id']}" placeholder="اسمك" class="form-control">
                 <textarea id="reply-input-{comment['_id']}" placeholder="اكتب رداً..." rows="1"></textarea>
                 <button onclick="addComment('{post_id}', '{comment['_id']}')">نشر</button>
             </div>
@@ -575,12 +621,13 @@ def render_comment(comment, post_id, depth=0):
     return html
 
 # ======================
-# API التعليقات (للـ AJAX)
+# API التعليقات
 # ======================
 
 @app.route('/comment/<post_id>', methods=['POST'])
 def add_comment_api(post_id):
     data = request.get_json()
+    name = data.get('name', '').strip() or 'زائر'
     content = data.get('content', '').strip()
     parent_id = data.get('parent_id')
     
@@ -590,10 +637,6 @@ def add_comment_api(post_id):
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if not post:
         return jsonify({'success': False, 'error': 'التدوينة غير موجودة'}), 404
-    
-    name = request.headers.get('X-Forwarded-For', 'زائر').split(',')[0].strip()
-    if name == 'زائر':
-        name = 'زائر_' + str(uuid.uuid4())[:6]
     
     comment = {
         'post_id': post_id,
@@ -642,6 +685,19 @@ def like_comment(comment_id):
         'likes': likes_count,
         'liked': liked
     })
+
+# ✅ حذف تعليق (للأدمن فقط)
+@app.route('/delete-comment/<comment_id>', methods=['POST'])
+def delete_comment(comment_id):
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'غير مصرح لك'}), 403
+    
+    result = db.comments.delete_one({'_id': ObjectId(comment_id)})
+    if result.deleted_count > 0:
+        # حذف الردود المرتبطة
+        db.comments.delete_many({'parent_id': comment_id})
+        return jsonify({'success': True})
+    return jsonify({'success': False})
 
 # ======================
 # الإعجاب بالتدوينة (API)
@@ -787,7 +843,7 @@ def logout():
     return redirect(url_for('index'))
 
 # ======================
-# الصفحات الخاصة (تصفية حسب النوع)
+# الصفحات الخاصة (تصفية حسب النوع) - 10 منشورات لكل صفحة
 # ======================
 
 @app.route('/cities')
@@ -812,7 +868,7 @@ def dates():
 
 def render_category_page(category, title, subtitle, icon, color):
     page = request.args.get('page', 1, type=int)
-    per_page = 5
+    per_page = 10  # ✅ 10 منشورات في كل صفحة
     
     posts_cursor = db.posts.find({'category': category}).sort('date', -1).skip((page - 1) * per_page).limit(per_page)
     posts = []
@@ -837,7 +893,7 @@ def render_category_page(category, title, subtitle, icon, color):
                 * { font-family: 'Cairo', sans-serif; }
                 body { background: #f0f2f5; padding: 40px 20px; }
                 .container { max-width: 750px; margin: 0 auto; }
-                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+                .page-header { text-align: center; padding-bottom: 30px; border-bottom: 1px solid #e9ecef; margin-bottom: 30px; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
                 .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
                 .page-header h1 i { color: {{ color }}; }
                 .page-header p { color: #868e96; }
@@ -862,7 +918,7 @@ def render_category_page(category, title, subtitle, icon, color):
                 .no-comments { color: #65676b; font-size: 0.85rem; padding: 5px 0; }
                 .empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 16px; border: 2px dashed #dee2e6; }
                 .empty-state i { font-size: 3.5rem; color: #dee2e6; }
-                .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 30px; }
+                .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 30px; flex-wrap: wrap; }
                 .pagination a { padding: 8px 16px; border: 1px solid #e9ecef; border-radius: 8px; text-decoration: none; color: #6c63ff; transition: all 0.3s; background: white; }
                 .pagination a:hover { background: #6c63ff; color: white; }
                 .pagination .active { background: #6c63ff; color: white; }
@@ -870,7 +926,7 @@ def render_category_page(category, title, subtitle, icon, color):
                 .read-more { color: #1877f2; text-decoration: none; font-weight: 600; }
                 .read-more:hover { text-decoration: underline; }
                 .footer { text-align: center; margin-top: 40px; color: #b2bec3; font-size: 0.8rem; }
-                @media (max-width: 576px) { .post-card { padding: 20px; } .post-meta { flex-direction: column; align-items: flex-start; } }
+                @media (max-width: 576px) { .post-card { padding: 20px; } .post-meta { flex-direction: column; align-items: flex-start; } .page-header { position: static; } }
             </style>
         </head>
         <body>
@@ -892,7 +948,7 @@ def render_category_page(category, title, subtitle, icon, color):
                             <div class="post-meta">
                                 <div class="post-stats">
                                     <span><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
-                                    <span><i class="bi bi-chat"></i> {{ post.comments|length }}</span>
+                                    <span><i class="bi bi-chat"></i> {{ post.comments_count }}</span>
                                     <span><i class="bi bi-eye"></i> {{ post.views }}</span>
                                 </div>
                                 <span class="post-date"><i class="bi bi-clock"></i> {{ post.date.strftime('%Y-%m-%d %H:%M') }}</span>
@@ -900,22 +956,19 @@ def render_category_page(category, title, subtitle, icon, color):
                             
                             <div class="comments-preview">
                                 {% if post.comments %}
-                                    {% set comment_count = post.comments|length %}
-                                    {% set preview_comments = post.comments[:3] %}
-                                    {% for comment in preview_comments %}
-                                        <div class="comment-preview">
-                                            <div class="comment-preview-avatar">{{ comment.name[0] }}</div>
-                                            <div class="comment-preview-body">
-                                                <div class="comment-preview-name">{{ comment.name }}</div>
-                                                <div class="comment-preview-text">
-                                                    {{ comment.content[:60] }}{% if comment.content|length > 60 %}...{% endif %}
-                                                </div>
+                                    {% set comment = post.comments[0] %}
+                                    <div class="comment-preview">
+                                        <div class="comment-preview-avatar">{{ comment.name[0] }}</div>
+                                        <div class="comment-preview-body">
+                                            <div class="comment-preview-name">{{ comment.name }}</div>
+                                            <div class="comment-preview-text">
+                                                {{ comment.content[:80] }}{% if comment.content|length > 80 %}...{% endif %}
                                             </div>
                                         </div>
-                                    {% endfor %}
-                                    {% if comment_count > 3 %}
+                                    </div>
+                                    {% if post.comments_count > 1 %}
                                         <a href="/post/{{ post._id }}" class="view-all-comments">
-                                            عرض جميع التعليقات ({{ comment_count }})
+                                            عرض جميع التعليقات ({{ post.comments_count }})
                                         </a>
                                     {% endif %}
                                 {% else %}
