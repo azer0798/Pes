@@ -21,7 +21,7 @@ DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 # ======================
 MONGO_URI = os.environ.get('MONGO_URI')
 if not MONGO_URI:
-    raise ValueError("❌ MONGO_URI غير موجود في متغيرات البيئة")
+    raise ValueError("MONGO_URI غير موجود في متغيرات البيئة")
 
 client = MongoClient(MONGO_URI)
 db = client.get_database('blog')
@@ -65,7 +65,7 @@ def upload_image_to_cloudinary(file):
             'success': True
         }
     except Exception as e:
-        print(f"❌ خطأ في رفع الصورة: {str(e)}")
+        print(f"خطأ في رفع الصورة: {str(e)}")
         return {'success': False, 'error': str(e)}
 
 def delete_image_from_cloudinary(public_id):
@@ -74,7 +74,7 @@ def delete_image_from_cloudinary(public_id):
             cloudinary.uploader.destroy(public_id)
             return True
     except Exception as e:
-        print(f"❌ خطأ في حذف الصورة: {e}")
+        print(f"خطأ في حذف الصورة: {e}")
         return False
 
 # ======================
@@ -83,12 +83,12 @@ def delete_image_from_cloudinary(public_id):
 
 def get_category_label(category):
     categories = {
-        'cities': '🏙️ مدن زرتها',
-        'experience': '⭐ تجربة خاصة',
-        'moments': '📸 لحظات خاصة',
-        'memories': '📖 ذكريات',
-        'dates': '📅 تواريخ',
-        'general': '📝 عام'
+        'cities': 'مدن زرتها',
+        'experience': 'تجربة خاصة',
+        'moments': 'لحظات خاصة',
+        'memories': 'ذكريات',
+        'dates': 'تواريخ',
+        'general': 'عام'
     }
     return categories.get(category, category)
 
@@ -114,60 +114,30 @@ def get_category_color(category):
     }
     return colors.get(category, '#6c63ff')
 
-def get_visitor_session():
-    if 'visitor_id' not in session:
-        session['visitor_id'] = str(uuid.uuid4())
-    return session['visitor_id']
-
-def track_visitor():
-    visitor_id = get_visitor_session()
-    visitors_collection = db.visitors
-    visitor = visitors_collection.find_one({'session_id': visitor_id})
-    
-    if visitor:
-        visitors_collection.update_one(
-            {'session_id': visitor_id},
-            {'$set': {'last_visit': datetime.utcnow()}, '$inc': {'visits_count': 1}}
-        )
+def get_client_ip():
+    """الحصول على IP العميل الحقيقي"""
+    if request.headers.get('X-Forwarded-For'):
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
     else:
-        visitors_collection.insert_one({
-            'session_id': visitor_id,
-            'first_visit': datetime.utcnow(),
-            'last_visit': datetime.utcnow(),
-            'visits_count': 1
-        })
+        ip = request.remote_addr
+    return ip
 
-def get_total_visitors():
-    return db.visitors.count_documents({})
-
-def get_online_visitors():
-    from datetime import timedelta
-    threshold = datetime.utcnow() - timedelta(minutes=5)
-    return db.visitors.count_documents({'last_visit': {'$gte': threshold}})
-
-def get_real_views(post_id):
-    """جلب عدد المشاهدات الحقيقي من قاعدة البيانات"""
-    post = db.posts.find_one({'_id': ObjectId(post_id)})
-    return post.get('views', 0) if post else 0
-
-def has_user_viewed_post(post_id, session_id):
-    """التحقق مما إذا كان المستخدم قد شاهد هذه التدوينة بالفعل"""
+def has_user_viewed_post(post_id, ip_address):
+    """التحقق مما إذا كان المستخدم قد شاهد هذه التدوينة بالفعل عبر IP"""
     view = db.post_views.find_one({
         'post_id': post_id,
-        'session_id': session_id
+        'ip_address': ip_address
     })
     return view is not None
 
-def add_post_view(post_id, session_id):
+def add_post_view(post_id, ip_address):
     """إضافة مشاهدة جديدة إذا لم يشاهد المستخدم التدوينة من قبل"""
-    if not has_user_viewed_post(post_id, session_id):
-        # تسجيل أن المستخدم شاهد التدوينة
+    if not has_user_viewed_post(post_id, ip_address):
         db.post_views.insert_one({
             'post_id': post_id,
-            'session_id': session_id,
+            'ip_address': ip_address,
             'date': datetime.utcnow()
         })
-        # زيادة عدد المشاهدات في التدوينة
         db.posts.update_one(
             {'_id': ObjectId(post_id)},
             {'$inc': {'views': 1}}
@@ -182,7 +152,6 @@ def serialize_post(post):
 def get_post_with_comments(post):
     """جلب التدوينة مع تعليقاتها (آخر تعليق واحد فقط)"""
     post = serialize_post(post)
-    # جلب آخر تعليق واحد فقط
     comments = list(db.comments.find({'post_id': post['_id']}).sort('date', -1).limit(1))
     for c in comments:
         c['_id'] = str(c['_id'])
@@ -191,7 +160,7 @@ def get_post_with_comments(post):
     return post
 
 def get_comments_tree(post_id, parent_id=None):
-    """جلب التعليقات بشكل متداخل (مثل فيسبوك)"""
+    """جلب التعليقات بشكل متداخل"""
     query = {'post_id': post_id}
     if parent_id:
         query['parent_id'] = parent_id
@@ -205,7 +174,7 @@ def get_comments_tree(post_id, parent_id=None):
         comment['likes_count'] = db.comment_likes.count_documents({'comment_id': str(comment['_id'])})
         comment['user_liked'] = db.comment_likes.find_one({
             'comment_id': str(comment['_id']),
-            'session_id': get_visitor_session()
+            'ip_address': get_client_ip()
         }) is not None
     return comments
 
@@ -264,12 +233,16 @@ def index():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    track_visitor()
-    
     posts_cursor = db.posts.find().sort('date', -1).skip((page - 1) * per_page).limit(per_page)
     posts = []
     for p in posts_cursor:
-        posts.append(get_post_with_comments(p))
+        post = get_post_with_comments(p)
+        # التحقق من إعجاب المستخدم
+        post['user_liked'] = db.likes.find_one({
+            'post_id': post['_id'],
+            'ip_address': get_client_ip()
+        }) is not None
+        posts.append(post)
     
     total_posts = db.posts.count_documents({})
     total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
@@ -291,20 +264,18 @@ def view_post(post_id):
     if not post:
         return "التدوينة غير موجودة", 404
     
-    # ✅ مشاهدة واحدة لكل مستخدم
-    session_id = get_visitor_session()
-    add_post_view(post_id, session_id)
+    # مشاهدة واحدة لكل IP
+    client_ip = get_client_ip()
+    add_post_view(post_id, client_ip)
     
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     post = serialize_post(post)
     
-    # جلب التعليقات المتداخلة
     comments = get_comments_tree(post_id)
     
-    # التحقق من إعجاب المستخدم بالتدوينة
     user_liked = db.likes.find_one({
         'post_id': post_id,
-        'session_id': session_id
+        'ip_address': client_ip
     }) is not None
     
     return render_template_string('''
@@ -567,7 +538,7 @@ def view_post(post_id):
                             break;
                         case 'copy':
                             navigator.clipboard.writeText(url);
-                            alert('✅ تم نسخ الرابط!');
+                            alert('تم نسخ الرابط!');
                             return;
                     }
                     
@@ -605,7 +576,6 @@ def view_post(post_id):
 # ======================
 
 def render_comment(comment, post_id, depth=0):
-    """عرض تعليق مع ردوده (مثل فيسبوك) مع زر حذف للأدمن"""
     indent = depth * 20
     max_depth = 5
     
@@ -689,11 +659,11 @@ def get_comments_api(post_id):
 
 @app.route('/like-comment/<comment_id>', methods=['POST'])
 def like_comment(comment_id):
-    session_id = get_visitor_session()
+    ip_address = get_client_ip()
     
     existing_like = db.comment_likes.find_one({
         'comment_id': comment_id,
-        'session_id': session_id
+        'ip_address': ip_address
     })
     
     if existing_like:
@@ -702,7 +672,7 @@ def like_comment(comment_id):
     else:
         db.comment_likes.insert_one({
             'comment_id': comment_id,
-            'session_id': session_id
+            'ip_address': ip_address
         })
         liked = True
     
@@ -713,7 +683,6 @@ def like_comment(comment_id):
         'liked': liked
     })
 
-# حذف تعليق (للأدمن فقط)
 @app.route('/delete-comment/<comment_id>', methods=['POST'])
 def delete_comment(comment_id):
     if not session.get('admin'):
@@ -721,7 +690,6 @@ def delete_comment(comment_id):
     
     result = db.comments.delete_one({'_id': ObjectId(comment_id)})
     if result.deleted_count > 0:
-        # حذف الردود المرتبطة
         db.comments.delete_many({'parent_id': comment_id})
         return jsonify({'success': True})
     return jsonify({'success': False})
@@ -732,20 +700,20 @@ def delete_comment(comment_id):
 
 @app.route('/like/<post_id>', methods=['POST'])
 def like_post(post_id):
-    visitor_id = get_visitor_session()
+    ip_address = get_client_ip()
     
     post = db.posts.find_one({'_id': ObjectId(post_id)})
     if not post:
         return jsonify({'error': 'Post not found'}), 404
     
-    existing_like = db.likes.find_one({'post_id': post_id, 'session_id': visitor_id})
+    existing_like = db.likes.find_one({'post_id': post_id, 'ip_address': ip_address})
     
     if existing_like:
         db.likes.delete_one({'_id': existing_like['_id']})
         db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': -1}})
         liked = False
     else:
-        like = {'post_id': post_id, 'session_id': visitor_id}
+        like = {'post_id': post_id, 'ip_address': ip_address}
         db.likes.insert_one(like)
         db.posts.update_one({'_id': ObjectId(post_id)}, {'$inc': {'likes': 1}})
         liked = True
@@ -769,8 +737,8 @@ def admin():
         
         total_posts = db.posts.count_documents({})
         total_comments = db.comments.count_documents({})
-        total_visitors = get_total_visitors()
-        online_visitors = get_online_visitors()
+        total_visitors = db.visitors.count_documents({})
+        online_visitors = 0
         
         total_likes = 0
         for p in db.posts.find():
@@ -797,7 +765,7 @@ def admin():
             session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             return redirect(url_for('admin'))
         else:
-            return render_template_string(ADMIN_LOGIN_TEMPLATE, error='❌ كلمة السر غير صحيحة')
+            return render_template_string(ADMIN_LOGIN_TEMPLATE, error='كلمة السر غير صحيحة')
     
     return render_template_string(ADMIN_LOGIN_TEMPLATE, error=None)
 
@@ -870,28 +838,28 @@ def logout():
     return redirect(url_for('index'))
 
 # ======================
-# الصفحات الخاصة (تصفية حسب النوع) - 10 منشورات لكل صفحة
+# الصفحات الخاصة
 # ======================
 
 @app.route('/cities')
 def cities():
-    return render_category_page('cities', 'مدن زرتها', '🗺️ استكشف المدن التي زرتها وذكرياتك فيها', 'bi-geo-alt-fill', '#4ecdc4')
+    return render_category_page('cities', 'مدن زرتها', 'استكشف المدن التي زرتها وذكرياتك فيها', 'bi-geo-alt-fill', '#4ecdc4')
 
 @app.route('/experience')
 def experience():
-    return render_category_page('experience', 'تجربة خاصة', '✨ لحظات وتجارب غيرت حياتك', 'bi-star-fill', '#ff6b6b')
+    return render_category_page('experience', 'تجربة خاصة', 'لحظات وتجارب غيرت حياتك', 'bi-star-fill', '#ff6b6b')
 
 @app.route('/moments')
 def moments():
-    return render_category_page('moments', 'لحظات خاصة', '📸 أجمل اللحظات التي لا تنسى', 'bi-camera-fill', '#feca57')
+    return render_category_page('moments', 'لحظات خاصة', 'أجمل اللحظات التي لا تنسى', 'bi-camera-fill', '#feca57')
 
 @app.route('/memories')
 def memories():
-    return render_category_page('memories', 'ذكريات', '📖 ذكريات تبقى في القلب', 'bi-bookmark-fill', '#a29bfe')
+    return render_category_page('memories', 'ذكريات', 'ذكريات تبقى في القلب', 'bi-bookmark-fill', '#a29bfe')
 
 @app.route('/dates')
 def dates():
-    return render_category_page('dates', 'تواريخ', '📅 تواريخ مهمة في حياتك', 'bi-calendar-event-fill', '#fd79a8')
+    return render_category_page('dates', 'تواريخ', 'تواريخ مهمة في حياتك', 'bi-calendar-event-fill', '#fd79a8')
 
 def render_category_page(category, title, subtitle, icon, color):
     page = request.args.get('page', 1, type=int)
@@ -900,7 +868,12 @@ def render_category_page(category, title, subtitle, icon, color):
     posts_cursor = db.posts.find({'category': category}).sort('date', -1).skip((page - 1) * per_page).limit(per_page)
     posts = []
     for p in posts_cursor:
-        posts.append(get_post_with_comments(p))
+        post = get_post_with_comments(p)
+        post['user_liked'] = db.likes.find_one({
+            'post_id': post['_id'],
+            'ip_address': get_client_ip()
+        }) is not None
+        posts.append(post)
     
     total_posts = db.posts.count_documents({'category': category})
     total_pages = (total_posts + per_page - 1) // per_page if total_posts > 0 else 1
@@ -922,23 +895,22 @@ def render_category_page(category, title, subtitle, icon, color):
                 .container { max-width: 750px; margin: 0 auto; }
                 .page-header { 
                     text-align: center; 
-                    padding-bottom: 30px; 
-                    border-bottom: 1px solid #e9ecef; 
+                    padding: 25px; 
                     margin-bottom: 30px; 
                     background: white; 
                     border-radius: 12px; 
-                    padding: 25px; 
                     box-shadow: 0 1px 3px rgba(0,0,0,0.08); 
                     position: sticky; 
                     top: 0; 
                     z-index: 100;
                     backdrop-filter: blur(10px);
                     background: rgba(255,255,255,0.95);
+                    border-bottom: 1px solid #e9ecef;
                 }
-                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; }
+                .page-header h1 { font-size: 2.2rem; font-weight: 700; color: #2d3436; margin: 0; }
                 .page-header h1 i { color: {{ color }}; }
-                .page-header p { color: #868e96; }
-                .back-btn { display: inline-block; margin-top: 15px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
+                .page-header p { color: #868e96; margin: 5px 0 0 0; }
+                .back-btn { display: inline-block; margin-top: 10px; padding: 8px 25px; background: #6c63ff; color: white; border-radius: 30px; text-decoration: none; transition: all 0.3s; }
                 .back-btn:hover { background: #5a52d5; color: white; transform: translateY(-2px); }
                 .post-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-right: 4px solid {{ color }}; transition: all 0.3s; }
                 .post-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.06); transform: translateY(-2px); }
@@ -946,6 +918,10 @@ def render_category_page(category, title, subtitle, icon, color):
                 .post-content { font-size: 1.05rem; line-height: 1.8; color: #1a1a1a; }
                 .post-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 15px; padding-top: 12px; border-top: 1px solid #e4e6eb; gap: 10px; }
                 .post-stats { display: flex; gap: 15px; color: #65676b; font-size: 0.85rem; }
+                .post-stats .like-btn { background: none; border: none; color: #65676b; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; transition: all 0.2s; }
+                .post-stats .like-btn:hover { background: #f0f2f5; }
+                .post-stats .like-btn.liked { color: #1877f2; }
+                .post-stats .like-btn.liked i { color: #1877f2; }
                 .post-date { color: #868e96; font-size: 0.85rem; }
                 .post-category-badge { display: inline-block; padding: 2px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; background: {{ color }}20; color: {{ color }}; border: 1px solid {{ color }}40; }
                 .comments-preview { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4e6eb; }
@@ -988,7 +964,10 @@ def render_category_page(category, title, subtitle, icon, color):
                             {% endif %}
                             <div class="post-meta">
                                 <div class="post-stats">
-                                    <span><i class="bi bi-hand-thumbs-up-fill" style="color: #1877f2;"></i> {{ post.likes }}</span>
+                                    <button class="like-btn {% if post.user_liked %}liked{% endif %}" onclick="toggleLikeIndex('{{ post._id }}', this)">
+                                        <i class="bi {% if post.user_liked %}bi-hand-thumbs-up-fill{% else %}bi-hand-thumbs-up{% endif %}"></i>
+                                        <span id="like-count-{{ post._id }}">{{ post.likes }}</span>
+                                    </button>
                                     <span><i class="bi bi-chat"></i> {{ post.comments_count }}</span>
                                     <span><i class="bi bi-eye"></i> {{ post.views }}</span>
                                 </div>
@@ -1044,13 +1023,33 @@ def render_category_page(category, title, subtitle, icon, color):
                 {% else %}
                     <div class="empty-state">
                         <i class="bi bi-journal-text"></i>
-                        <h5 class="mt-3">لا توجد تدوينات في هذا القسم</h5>
-                        <p style="color: #868e96;">قم بإضافة تدوينة جديدة من لوحة التحكم! ✨</p>
+                        <h5>لا توجد تدوينات في هذا القسم</h5>
+                        <p style="color: #868e96;">قم بإضافة تدوينة جديدة من لوحة التحكم</p>
                     </div>
                 {% endif %}
                 
-                <div class="footer">© 2026 مدونتي</div>
+                <div class="footer">2026 مدونتي</div>
             </div>
+            
+            <script>
+                function toggleLikeIndex(postId, btn) {
+                    fetch('/like/' + postId, { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            const countSpan = document.getElementById('like-count-' + postId);
+                            countSpan.textContent = data.likes;
+                            
+                            const icon = btn.querySelector('i');
+                            if (data.liked) {
+                                btn.classList.add('liked');
+                                icon.className = 'bi bi-hand-thumbs-up-fill';
+                            } else {
+                                btn.classList.remove('liked');
+                                icon.className = 'bi bi-hand-thumbs-up';
+                            }
+                        });
+                }
+            </script>
         </body>
         </html>
     ''', posts=posts, total_pages=total_pages, current_page=current_page, 
